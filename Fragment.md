@@ -1,4 +1,4 @@
-#Fragment
+# Fragment
 ## 使用方式
 ### 基本用法
 1. 新建两个布局文件```left_fragment.xml```和```right_fragment.xml```  
@@ -87,4 +87,4 @@ class RightFragment : Fragment() {
 </LinearLayout>
 ```
 
-<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Fragment/Fragment_life_01.PNG" width="680" height="400" align=center/>
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Fragment/fragment_01.jpg" width="680" height="400" align=center/>
