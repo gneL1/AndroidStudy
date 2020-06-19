@@ -295,5 +295,69 @@ class RightFragment : Fragment() {
 4. 点击Back键退出程序  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Fragment/Fragment_life_04.PNG)
 
+***
+
+## 动态加载布局
+### 使用限定符
+1. 修改```activity_main.xml```  
+&emsp;&emsp;```large```是一个限定符，屏幕被认为时large的设备会自动加载```layout-large```文件夹下的布局，
+小屏幕仍然加载```lauout```文件夹下的布局  
+```xml
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    tools:context=".MainActivity">
+
+    <fragment
+        android:id="@+id/leftFrag"
+        android:name="com.example.fragmenttest.LeftFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>
+```
+
+2. 在```res```目录下新建```layout-large```文件夹，在此文件夹下新建```activity_main.xml```  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <fragment
+        android:id="@+id/leftFrag"
+        android:name="com.example.fragmenttest.LeftFragment"
+        android:layout_weight="1"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"/>
+
+    <fragment
+        android:id="@+id/rightFrag"
+        android:name="com.example.fragmenttest.RightFragment"
+        android:layout_weight="3"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>
+```
+
+&emsp;&emsp;手机端：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Fragment/fragment_phone.png" width="400" height="680" align=center/>
+
+&emsp;&emsp;平板端：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Fragment/fragment_pad.jpg" width="680" height="400" align=center/>
+
+***
+
+### 最小宽度限定符
+&emsp;&emsp;在```res```目录下新建```layout-sw600dp```文件夹，在此文件夹下新建```activity_main.xml```布局  
+&emsp;&emsp;当程序运行在屏幕宽度大于等于```600dp```的设备时，会加载```layout-sw600dp/activity_main```布局  
+&emsp;&emsp;当程序运行在屏幕宽度小于```600dp```的设备时，加载默认的```layout/activity_main```布局  
+
+
+
 
 
