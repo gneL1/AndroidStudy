@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
 ***
 
 ### 静态注册实现开机启动
+&emsp;&emsp;静态注册可以在程序未启动的情况下接收广播。  
 &emsp;&emsp;隐式广播是指没有具体指定发送给哪个应用程序的广播，大多数系统广播属于隐式广播。  
 &emsp;&emsp;少数特殊的系统广播允许使用静态注册的方式来接收，参考
 [https://developer.android.google.cn/guide/components/broadcast-exceptions.html](https://developer.android.google.cn/guide/components/broadcast-exceptions.html)  
