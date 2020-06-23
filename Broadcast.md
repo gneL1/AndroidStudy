@@ -1,6 +1,8 @@
 # Broadcast
 ## 接收系统广播
 &emsp;&emsp;```BroadcastReceiver```能够接收广播。  
+&emsp;&emsp;不要在```BroadcastReceiver```的```onReceive()```方法中添加过多逻辑或进行耗时操作。  
+&emsp;&emsp;```BroadcastReceiver```不允许开启线程，```onReceive()```方法运行长时间不结束，程序会出错。  
 
 ### 动态注册监听时间变化
 &emsp;&emsp;动态注册即在代码中注册,动态注册的```BroadcastReceiver```，一定要取消注册。  
@@ -66,5 +68,128 @@ class MainActivity : AppCompatActivity() {
 &emsp;&emsp;隐式广播是指没有具体指定发送给哪个应用程序的广播，大多数系统广播属于隐式广播。  
 &emsp;&emsp;少数特殊的系统广播允许使用静态注册的方式来接收，参考
 [https://developer.android.google.cn/guide/components/broadcast-exceptions.html](https://developer.android.google.cn/guide/components/broadcast-exceptions.html)  
+
+
+&emsp;&emsp;右键 -> NEW -> Other -> Broadcast Receiver  
+&emsp;&emsp;```Exported```属性表示是否允许这个```BroadcastReceiver```接收本程序以外的广播。  
+&emsp;&emsp;```Enable```属性表示是否启用这个```BroadcastReceiver```。  
+```kotlin
+class BootCompleteReceiver : BroadcastReceiver() {
+
+    override fun onReceive(context: Context, intent: Intent) {
+        // This method is called when the BroadcastReceiver is receiving an Intent broadcast.
+//        TODO("BootCompleteReceiver.onReceive() is not implemented")
+        Toast.makeText(context,"Boot Complete",Toast.LENGTH_SHORT).show()
+    }
+}
+```
+&emsp;&emsp;通过快捷方式创建的```BroadcastReceiver```，在```AndroidManifest.xml```中自动完成了注册。  
+&emsp;&emsp;所有静态的```BroadcastReceiver```都是在标签```<receiver>```中注册的。  
+```xml
+<application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".BootCompleteReceiver"
+            android:enabled="true"
+            android:exported="true">
+        </receiver>
+    </application>
+```
+
+&emsp;&emsp;一些敏感操作，需要权限声明，如果不进行权限声明，那么程序会直接崩溃。  
+&emsp;&emsp;为了收到广播，再进行修改：  
+> 在```<receiver>``` 标签中添加一个```<intent-filter>``` 标签，并在里面声明相应的 ```action```  
+
+```xml
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        ......
+
+        <receiver
+            android:name=".BootCompleteReceiver"
+            android:enabled="true"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+
+        </receiver>
+    </application>
+```
+
+***
+
+## 发送自定义广播
+### 发送标准广播
+1. 新建一个```MyBroadcastReceiver```  
+```kotlin
+class MyBroadcastReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        // This method is called when the BroadcastReceiver is receiving an Intent broadcast.
+//        TODO("MyBroadcastReceiver.onReceive() is not implemented")
+        Toast.makeText(context,"收到广播了",Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+2. 修改```AndroidManifest.xml```  
+> 这里让**MyBroadcastReceiver** 接收一条值为 **com.example.broadcasttest.MY_BROADCAST** 的广播  
+```xml
+<receiver
+    android:name=".MyBroadcastReceiver"
+    android:enabled="true"
+    android:exported="true">
+
+    <intent-filter>
+        <action android:name="com.example.broadcasttest.MY_BROADCAST"/>
+    </intent-filter>
+
+</receiver>
+```
+
+3. 修改```MainActivity```  
+> 广播使用 **Intent** 发送，还可以在 **Intent** 中携带一些数据传递给相应的 **BroadcastReceiver**  
+```kotlin
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        Btn_1.setOnClickListener {
+            /**
+             * 构建一个Intent对象，传入要发送的广播的值
+             * 调用Intent的setPackage方法，传入当前应用程序的包名
+             * getPackageName()获取当前应用程序的包名
+             * sendBroadcast()将广播发送出去
+             * 静态注册的BroadcastReceiver无法接收隐式广播，默认情况下发出的自定义广播恰恰都是隐式广播
+             * 这里调用setPackage()方法指定这条广播发送给哪个应用程序
+             * 让它变成一条显示广播
+             */
+            val intent = Intent("com.example.broadcasttest.MY_BROADCAST")
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+        }
+    }
+
+}
+```
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_02.png" width="400" height="680" align=center/>
 
 
