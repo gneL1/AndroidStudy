@@ -264,3 +264,225 @@ class MyBroadcastReceiver : BroadcastReceiver() {
 }
 ```
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_ordered_2.gif)
+
+***
+
+## 实现一个强制下线的功能
+1. 新建一个```ActivityController```管理所有```Activity```  
+```kotlin
+object ActivityController {
+    private val activities = ArrayList<Activity>()
+
+    fun addActivity(activity: Activity){
+        activities.add(activity)
+    }
+
+    fun removeActivity(activity: Activity){
+        activities.remove(activity)
+    }
+
+    fun finishAll(){
+        for (activity in activities){
+            if (!activity.isFinishing){
+                activity.finish()
+            }
+        }
+        activities.clear()
+    }
+}
+```
+
+2. 新建```BaseActivity```类作为所有```Activity```的父类  
+```kotlin
+open class BaseActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        ActivityController.addActivity(this)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ActivityController.removeActivity(this)
+    }
+    
+}
+```
+
+3. 创建一个```LoginActivity```作为登陆界面，将主```Activity```设置为```LoginActivity```,登录成功后跳转至```MainActivity```    
+**AndroidManifest.xml**  
+```xml
+<activity android:name=".LoginActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+    </intent-filter>
+</activity>
+```
+&emsp;&emsp;**activity_login.xml**  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".LoginActivity">
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="60dp">
+
+        <TextView
+            android:layout_gravity="center_vertical"
+            android:textSize="18sp"
+            android:text="账号："
+            android:layout_width="90dp"
+            android:layout_height="wrap_content"/>
+
+        <EditText
+            android:id="@+id/Edit_Account"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="60dp">
+
+        <TextView
+            android:textSize="18sp"
+            android:text="密码："
+            android:layout_gravity="center_vertical"
+            android:layout_width="90dp"
+            android:layout_height="wrap_content"/>
+
+        <EditText
+            android:id="@+id/Edit_Password"
+            android:layout_weight="1"
+            android:layout_gravity="center_vertical"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/Btn_Login"
+        android:text="登录"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="200dp"
+        android:layout_height="60dp"/>
+
+</LinearLayout>
+```
+&emsp;&emsp;**LoginActivity**  
+```kotlin
+class LoginActivity : BaseActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
+
+        Btn_Login.setOnClickListener {
+            val account = Edit_Account.text.toString()
+            val password = Edit_Password.text.toString()
+            if(account == "admin" && password == "123"){
+                val intent = Intent(this,MainActivity::class.java)
+                startActivity(intent)
+                finish()
+            }
+            else{
+                Toast.makeText(this,"账号或密码错误",Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+```
+
+4. 修改```MainActivity```  
+&emsp;&emsp;点击按钮发送一条广播，通知程序强制下线。  
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_main)
+    Btn_1.setOnClickListener {
+        val intent = Intent("com.example.broadcasttest.MY_BROADCAST")
+        intent.setPackage(packageName)
+        sendOrderedBroadcast(intent,null)
+    }
+
+    Btn_Off.setOnClickListener {
+        val intent = Intent("com.example.broadcastbestpractice.FORCE_OFFLINE")
+        sendBroadcast(intent)
+    }
+}
+```
+
+5. 修改```BaseActivity```  
+&emsp;&emsp;创建一个```BroadcastReceiver```接收广播，```BroadcastReceiver```弹出一个对话框来阻塞用户的正常操作。  
+&emsp;&emsp;如果是静态注册的```BroadcastReceiver```，是没法在```onReceiver()```方法里弹出对话框。  
+&emsp;&emsp;重写```onResume()```和```onPause()```方法，分别在这两个方法中注册和取消```ForceOfflineReceiver```。  
+&emsp;&emsp;因为只要处于栈顶的```Activity```才能接收到广播，非栈顶的```Activity```没必要接收广播，当一个```Activity```失去栈顶位置时，自动取消```BroadcastReceiver```的注册。  
+```kotlin
+open class BaseActivity : AppCompatActivity() {
+
+    lateinit var receiver : ForceOffLineReceiver
+
+    inner class ForceOffLineReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            AlertDialog.Builder(context).apply {
+                setTitle("警告")
+                setMessage("当前强制下线，请尝试重新登陆！")
+                /**
+                 * setCancelable将对话框设置为不可取消
+                 * 否则按一下Back键就可以关闭对话框继续使用程序
+                 */
+                setCancelable(false)
+                /**
+                 * 设置确定按钮
+                 */
+                setPositiveButton("确定"){_,_ ->
+                    //销毁所有Activity
+                    ActivityController.finishAll()
+                    val i = Intent(context,LoginActivity::class.java)
+                    //重新启动LoginActivity
+                    context?.startActivity(i)
+                }
+                show()
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        ActivityController.addActivity(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val intentFilter = IntentFilter()
+        intentFilter.addAction("com.example.broadcastbestpractice.FORCE_OFFLINE")
+        receiver = ForceOffLineReceiver()
+        registerReceiver(receiver,intentFilter)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(receiver)
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        ActivityController.removeActivity(this)
+    }
+
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_off_line.gif)
+
+
+
