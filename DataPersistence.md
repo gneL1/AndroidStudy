@@ -61,3 +61,7 @@ class FilePersistenceTest : AppCompatActivity() {
 
 }
 ```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/file_persistence_1.PNG)  
+&emsp;&emsp;右下角```Device File Explorer```可以查看设备文件：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/file_persistence_2.PNG)  
+
