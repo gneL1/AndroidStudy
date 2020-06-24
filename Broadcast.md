@@ -138,6 +138,7 @@ class BootCompleteReceiver : BroadcastReceiver() {
 
 ## 发送自定义广播
 ### 发送标准广播
+&emsp;&emsp;标准广播是一种完全异步的广播，发出后，所有```BroadcastReceiver```几乎都会在同一时刻收到广播，没有先后顺序可言，效率高且无法被截断。  
 1. 新建一个```MyBroadcastReceiver```  
 ```kotlin
 class MyBroadcastReceiver : BroadcastReceiver() {
@@ -192,4 +193,73 @@ class MainActivity : AppCompatActivity() {
 ```
 <img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_02.png" width="400" height="680" align=center/>
 
+***
 
+### 发送有序广播
+&emsp;&emsp;有序广播是一种同步执行的广播，广播发出后，同一时刻只会有一个```BroadcastReceiver```收到广播。当此```BroadcastReceiver```中的逻辑
+执行完毕后，广播才会继续传递。优先级高的```BroadcastReceiver```先收到广播，前面的```BroadcastReceiver```可以截断正在传递的广播。  
+1. 新建一个```AnotherBroadcastReceiver```  
+```kotlin
+class AnotherBroadcastReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        Toast.makeText(context,"接收到了有序广播",Toast.LENGTH_SHORT).show()
+    }
+}
+```
+
+2. 修改```AndroidManifest.xml```  
+> 设置与上面的 **MyBroadcastReceiver** 接收同样的广播 **com.example.broadcasttest.MY_BROADCAST**  
+```xml
+<receiver
+    android:name=".AnotherBroadcastReceiver"
+    android:enabled="true"
+    android:exported="true">
+
+    <intent-filter>
+        <action android:name="com.example.broadcasttest.MY_BROADCAST"/>
+    </intent-filter>
+
+</receiver>
+```
+
+3. 修改```MainActivity```  
+&emsp;&emsp;```sendOrderedBroadcast(Intent intent,String receiverPermission)```即发送有序广播。  
+&emsp;&emsp;第一个参数是```Intent```,第二个参数是一个与权限相关的字符串，如果为```null```，则不需要权限。  
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_main)
+    Btn_1.setOnClickListener {
+        val intent = Intent("com.example.broadcasttest.MY_BROADCAST")
+        intent.setPackage(packageName)
+        sendOrderedBroadcast(intent,null)
+//            sendBroadcast(intent)
+    }
+}
+```
+
+4. 修改```AndroidManifest.xml```设置广播的先后顺序。  
+&emsp;&emsp;通过```android:priority```属性给```BroadcastReceiver```设置优先级，优先级高的```BroadcastReceiver```先收到广播。  
+```xml
+<receiver
+    android:name=".MyBroadcastReceiver"
+    android:enabled="true"
+    android:exported="true">
+    <intent-filter android:priority="100">
+        <action android:name="com.example.broadcasttest.MY_BROADCAST" />
+    </intent-filter>
+</receiver>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_ordered_1.gif)
+
+5. 修改```MyBroadcastReceiver```截断广播  
+&emsp;&emsp;```abortBroadcast()```方法表示将广播截断  
+```kotlin
+class MyBroadcastReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        Toast.makeText(context,"收到广播了",Toast.LENGTH_SHORT).show()
+        abortBroadcast()
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_ordered_2.gif)
