@@ -198,6 +198,8 @@ class MainActivity : AppCompatActivity() {
 ### 发送有序广播
 &emsp;&emsp;有序广播是一种同步执行的广播，广播发出后，同一时刻只会有一个```BroadcastReceiver```收到广播。当此```BroadcastReceiver```中的逻辑
 执行完毕后，广播才会继续传递。优先级高的```BroadcastReceiver```先收到广播，前面的```BroadcastReceiver```可以截断正在传递的广播。  
+&emsp;&emsp;```sendOrderedBroadcast()```发送有序广播。  
+&emsp;&emsp;```abortBroadcast()```方法表示将广播截断。  
 1. 新建一个```AnotherBroadcastReceiver```  
 ```kotlin
 class AnotherBroadcastReceiver : BroadcastReceiver() {
@@ -252,8 +254,7 @@ override fun onCreate(savedInstanceState: Bundle?) {
 ```
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Broadcast/broadcast_ordered_1.gif)
 
-5. 修改```MyBroadcastReceiver```截断广播  
-&emsp;&emsp;```abortBroadcast()```方法表示将广播截断  
+5. 修改```MyBroadcastReceiver```使用```abortBroadcast()```截断广播  
 ```kotlin
 class MyBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
