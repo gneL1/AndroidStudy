@@ -339,3 +339,149 @@ class LoginActivity : AppCompatActivity() {
 }
 ```
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sharedpreferences_3.PNG)  
+
+***
+
+## SQLite
+### 1. 创建数据库
+&emsp;&emsp;```SQLiteOpenHelper```是一个抽象类，要使用就需要创建一个自己的帮助类去继承它，并重写```onCreate()```和```onUpgrade()```方法，分别实现创建和升级数据库逻辑。  
+&emsp;&emsp;```SQLiteOpenHelper```有两个实例方法```getReadableDatabase()```和```getWritableDatabase()```，这两个方法都可以创建或打开一个现有的数据库，数据库已存在则直接打开，否则创建一个新的数据库，并返回一个可对数据库进行读写操作的对象。  
+&emsp;&emsp;当数据库不可写入（如磁盘空间已满），```getReadableDatabase()```返回的对象将只以可读的方式打开数据库，而```getWritableDatabase()```将出现异常。  
+&emsp;&emsp;  
+&emsp;&emsp;**常用构造方法：**  
+&emsp;&emsp;```context```：上下文对象  
+&emsp;&emsp;```name```：数据库名字  
+&emsp;&emsp;```factory```：游标工厂，通常传入```null```  
+&emsp;&emsp;```version```：当前数据库版本号，可用于对数据库进行升级操作  
+```kotlin
+SQLiteOpenHelper(@Nullable Context context, @Nullable String name, @Nullable CursorFactory factory, int version)
+```  
+&emsp;&emsp;构建出```SQLiteOpenHelper```实例后，再调用```getReadableDatabase()```或```getWritableDatabase()```就能够创建数据库了，此时重写的```onCreate()```方法也会得到执行，可以在
+```onCreate()```方法里执行一些创建表的逻辑。  
+&emsp;&emsp;数据库文件存放在```/data/data/包名/databases/```目录下。  
+
+1. 新建```MyDatabaseHelper```类继承```SQLiteOpenHelper```  
+&emsp;&emsp;```integer```表整型  
+&emsp;&emsp;```real```表浮点型  
+&emsp;&emsp;```text```表示文本类型  
+&emsp;&emsp;```blob```表示二进制类型  
+> 这里将 **id** 通过 **primary key** 设为主键，用 **autoincrement** 表示 **id** 是自增长的。  
+> 把建表语句定义成一个字符串变量，在 **onCreate()** 方法中又调用了 **SQLiteDatabase** 的 **execSQL** 去执行建表语句，在数据库创建完成时创建 **Book** 表。  
+```kotlin
+class MyDatabaseHelper(val context: Context,name : String,version : Int) : SQLiteOpenHelper(context,name,null,version) {
+
+    private val createBook = "create table Book (" +
+            " id integer primary key autoincrement," +
+            " author text," +
+            " price real," +
+            " pages integer," +
+            " name text)"
+
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(createBook)
+        Toast.makeText(context,"创建数据库成功",Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, p1: Int, p2: Int) {
+        TODO("Not yet implemented")
+    }
+
+}
+```
+
+2. 修改```activity_sqlite_test.xml```布局文件，增加一个按钮  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".SqliteTest">
+
+    <Button
+        android:id="@+id/Btn_CreateDb"
+        android:text="创建数据库"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+
+3. 修改```SqliteTest```  
+&emsp;&emsp;在```onCreate()```方法中构建了一个```MyDatabaseHelper```对象，通过构造方法的参数将数据库名指定为```BookStore.db```,版本指定为1。  
+&emsp;&emsp;在点击事件里调用```getWritableDatabase()```方法，第一次点击按钮就会检测到当前没有```BookStore.db```这个数据库，然后创建该数据库并调用```MyDatabaseHelper```里的```onCreate()```方法。  
+&emsp;&emsp;再次点击按钮，因为已经存在```BookStore.db```数据库，因此不会再创建一次。  
+```kotlin
+class SqliteTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sqlite_test)
+        val dbHelper = MyDatabaseHelper(this,"BookStore.db",1)
+        Btn_CreateDb.setOnClickListener {
+            dbHelper.writableDatabase
+        }
+    }
+}
+```
+
+4. 查看数据库文件  
+&emsp;&emsp;在插件商城里下载```Database Navigator```，下载完后重启Android Studio。  
+&emsp;&emsp;打开```Device File Explorer```，在```/data/data/包名/databases/```目录下可以看到```BookStore.db```文件，```BookStore.db-journal```是一个为了让数据库能支持事务而产生的临时文件。对```BookStore.db```右键```SAVE AS```保存到本地。  
+&emsp;&emsp;点击左侧```DB Browser```，没有的话就```Ctrl + Shift + A```快速搜索。点击左上角```+```号按钮，选择```SQLite```，在弹窗里的```Databases files```栏里修改成本地保存的```BookStore.db```，点击```OK```，此时可以在```DB Browser```中看到```Book```表。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_1.PNG)
+
+***
+
+### 2. 升级数据库
+&emsp;&emsp;修改```MyDatabaseHelper```，增加一张```Category```表用于记录图书的分类  
+```kotlin
+class MyDatabaseHelper(val context: Context,name : String,version : Int) : SQLiteOpenHelper(context,name,null,version) {
+    
+    ......
+    
+    private val createCategory = "create table Category(" +
+            "id integer primary key autoincrement," +
+            "category_name text," +
+            "category_code integer)"
+
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(createBook)
+        db?.execSQL(createCategory)
+        Toast.makeText(context,"创建数据库成功",Toast.LENGTH_SHORT).show()
+    }
+
+}
+```
+&emsp;&emsp;运行程序后点击按钮，不会弹出提示也没有创建```Category```表，因为```BookStore.db```已经存在了。  
+&emsp;&emsp;如果将程序卸载后再重新运行，```BookStore.db```此时不存在，```Category```表是可以创建成功的，但这不是好的做法。  
+&emsp;&emsp;正确的做法是使用```SQLiteOpenHelper```的升级功能：  
+1. 修改```MyDatabaseHelper```   
+&emsp;&emsp;在```onUpgrade()```方法里执行了两条```DROP```语句，如果数据库已存在```Book```表或```Category```表，就将这两张表删除，然后调用```onCreate()```方法重新创建表。  
+```kotlin
+......
+override fun onUpgrade(db: SQLiteDatabase?, p1: Int, p2: Int) {
+    db?.execSQL("drop table if exists Book")
+    db?.execSQL("DROP TABLE IF EXISTS Category")
+    onCreate(db)
+}
+```
+
+2. 修改```SqliteTest```  
+&emsp;&emsp;这里将版本号指定为2，表示对数据库进行升级了。  
+```kotlin
+class SqliteTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sqlite_test)
+//        val dbHelper = MyDatabaseHelper(this,"BookStore.db",1)
+        val dbHelper = MyDatabaseHelper(this,"BookStore.db",2)
+        Btn_CreateDb.setOnClickListener {
+            dbHelper.writableDatabase
+        }
+    }
+}
+```
+&emsp;&emsp;重新运行程序，点击按钮，创建成功。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_2.PNG)
+
