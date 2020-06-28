@@ -485,3 +485,313 @@ class SqliteTest : AppCompatActivity() {
 &emsp;&emsp;重新运行程序，点击按钮，创建成功。  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_2.PNG)
 
+***
+
+### 3. 添加数据
+&emsp;&emsp;添加数据的方法是```insert(String table, String nullColumnHack, ContentValues values)```  
+&emsp;&emsp;```table```：表名  
+&emsp;&emsp;```nullColumnHack```：在未指定添加数据的情况下给某些可为空的列自动复制```NULL```，一般传入```null```  
+&emsp;&emsp;```values```：```ContentValues```对象，提供了一系列```put()```方法重载，用于向```ContentValues```中添加数据  
+&emsp;&emsp;  
+&emsp;&emsp;修改```SqliteTest```：  
+> 先获取 **SQLiteDatabase** 对象，然后使用 **ContentValues** 对要添加的数据进行组装  
+> 这里没有给 **id** 赋值是因为之前在创建表的时候将 **id** 设置为自增长了，值会在入库的时候自动生成  
+> 最后调用 **insert()** 将数据添加到表中  
+```kotlin
+class SqliteTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sqlite_test)
+        val dbHelper = MyDatabaseHelper(this,"BookStore.db",2)
+        ......
+
+        Btn_addData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            val values1 = ContentValues().apply {
+                put("name","炎拳")
+                put("author","藤本树")
+                put("pages",214)
+                put("price",24.0)
+            }
+            db.insert("Book",null,values1)
+
+            val values2 = ContentValues().apply {
+                put("name","彪马野郎")
+                put("author","荒木")
+                put("pages",244)
+                put("price",28.0)
+            }
+            db.insert("Book",null,values2)
+        }
+    }
+}
+```
+&emsp;&emsp;导出```BookStore.db```重新加载，在```DB BROWSER```里双击表，点击```No Filter```即可看到数据。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_add_1.PNG)
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_add_2.PNG)
+
+***
+
+### 4. 更新数据
+&emsp;&emsp;```update(String table, ContentValues values, String whereClause, String[] whereArgs)```  
+&emsp;&emsp;```table```：表名  
+&emsp;&emsp;```values```：```ContentValues```对象，把要更新的数据在这里组装进去  
+&emsp;&emsp;```whereClause```：WHERE表达式（String），需数据更新的行。 若该参数为 ```null```, 就会修改所有行。```?```号是占位符  
+&emsp;&emsp;```whereArgs```：WHERE选择语句的参数(String[]), 逐个替换 WHERE表达式中的```?```占位符  
+&emsp;&emsp;  
+&emsp;&emsp;修改```SqliteTest```：  
+> **arrayOf()** 是Kotlin提供的便捷创建数组的内置方法  
+```kotlin
+Btn_updateData.setOnClickListener {
+    val db = dbHelper.writableDatabase
+    val values = ContentValues().apply {
+        put("price",10.99)
+    }
+    db.update("Book",values,"name = ?", arrayOf("彪马野郎"))
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_update_1.PNG)
+
+***
+
+### 5. 删除数据
+&emsp;&emsp;```delete(String table, String whereClause, String[] whereArgs)```  
+&emsp;&emsp;```table```：表名  
+&emsp;&emsp;```whereClause```：WHERE表达式（String），需删除数据的行。 若该参数为 ```null```, 就会删除所有行。```?```号是占位符  
+&emsp;&emsp;```whereArgs```：WHERE选择语句的参数(String[]), 逐个替换 WHERE表达式中的```?```占位符  
+&emsp;&emsp;  
+&emsp;&emsp;修改```SqliteTest```：  
+```kotlin
+Btn_deleteData.setOnClickListener {
+    val db = dbHelper.writableDatabase
+    db.delete("Book","pages > ?", arrayOf("220"))
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_delete_1.PNG)
+
+***
+
+### 6. 查询数据
+&emsp;&emsp;```query(String table, String[] columns, String selection, String[] selectionArgs, String groupBy, String having, String orderBy)```  
+&emsp;&emsp;调用```query()```方法后返回一个```Cursor```对象，查询到的所有数据从```Cursor```对象中取出。  
+
+query()参数|对应SQL部分|描述
+:-|:-|:-|
+table|from table_name|指定查询的表名
+columns|select column1,column2|指定查询的列名
+selection|where column = value|指定where的约束条件
+selectionArgs|-|为where的占位符提供具体的值
+groupBy|group by column|指定需要group by的列
+having|having column = value|对group by后的结果进一步约束
+orderBy|order by column1,column2|指定查询结果的排序方式
+
+&emsp;&emsp;修改```SqliteTest```：  
+> 这里只使用第一个参数指明查询```Book```表，后面的参数全部为```null```，表示查询这张表的所有数据。  
+> 调用```Cursor```对象的```moveToFirst()```方法，将数据的指针移动到第一行，通过```do/while()```进入循环,遍历查询的每一行数据。  
+> 通过```Cursor```的```getColumnIndex()```方法获取某一列在表中对应的位置索引，然后将索引传入相应的取值方法中，如```getString()```。  
+> 记得最后调用```close()```方法来关闭```Cursor```。  
+```kotlin
+class SqliteTest : AppCompatActivity() {
+    companion object{
+        val TAG = "SqliteTest"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sqlite_test)
+        val dbHelper = MyDatabaseHelper(this,"BookStore.db",2)
+        ......
+        
+        Btn_queryData.setOnClickListener {
+            val db = dbHelper.writableDatabase
+            //查询Book表中所有数据
+            val cursor = db.query("Book",null,null,null,null,null,null)
+            if(cursor.moveToFirst()){
+                do {
+                    //遍历Cursor对象，取出数据并打印
+                    val name = cursor.getString(cursor.getColumnIndex("name"))
+                    val author = cursor.getString(cursor.getColumnIndex("author"))
+                    val pages = cursor.getInt(cursor.getColumnIndex("pages"))
+                    val price = cursor.getDouble(cursor.getColumnIndex("price"))
+                    Log.d(TAG,"书名：$name")
+                    Log.d(TAG,"作者：$author")
+                    Log.d(TAG,"页数：$pages")
+                    Log.d(TAG,"价格：$price")
+                }while (cursor.moveToNext())
+            }
+            cursor.close()
+        }
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_query_1.PNG)
+
+***
+
+### 7. 使用SQL操作数据库
+&emsp;&emsp;除了查询数据调用的是```SQLiteDatabase```的```rawQuery()```方法，其他操作都是调用的```execSQL()```方法。  
+&emsp;&emsp;添加数据：  
+```kotlin
+val db = dbHelper.writableDatabase
+db.execSQL("insert into Book (name,author,pages,price) values(?,?,?,?)",
+        arrayOf("彪马野郎","荒木飞吕彦","244","28.0")
+)
+
+db.execSQL("insert into Book (name,author,pages,price) values(?,?,?,?)",
+        arrayOf("炎拳","藤本树","214","24.0")
+)
+```
+
+&emsp;&emsp;更新数据：  
+```korlin
+db.execSQL("update Book set price = ? where name = ?", arrayOf("10.99","彪马野郎"))
+```
+
+&emsp;&emsp;删除数据：
+```kotlin
+db.execSQL("delete from Book where pages > ?", arrayOf("220"))
+```
+
+&emsp;&emsp;查询数据：  
+```kotlin
+val cursor = db.rawQuery("select * from Book",null)
+```
+
+***
+
+### 8. 使用事务
+&emsp;&emsp;事务可以保证一系列的操作要么全部完成，要么一个都不会完成。  
+&emsp;&emsp;调用```SQLiteDatabase```的```beginTransaction()```方法开启一个事务，然后在一个异常捕捉的代码块中执行具体的数据库操作，当所有操作都完成后，调用```setTransactionSuccessful()```表示事务已经执行成功了，最后在```finally```代码块中调用```endTransaction()```结束事务。  
+&emsp;&emsp;由于事物的存在，中途出现异常会导致事物的失败，此时旧数据是删除不掉的。  
+```kotlin
+Btn_transaction.setOnClickListener {
+    val db = dbHelper.writableDatabase
+    //开启事务
+    db.beginTransaction()
+    try {
+        db.delete("Book",null,null)
+        if(true){
+            //手动抛出一个异常，让事务失败
+            throw NullPointerException()
+        }
+        val values = ContentValues().apply {
+            put("name","一拳超人")
+            put("author","村田雄介")
+            put("pages",224)
+            put("price",24.0)
+        }
+        db.insert("Book",null,null)
+        //事务已经执行成功
+        db.setTransactionSuccessful()
+    }catch (e:Exception){
+        e.printStackTrace()
+    }finally {
+        //结束事务
+        db.endTransaction()
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/DataPersistence/sqlite_transaction_1.PNG)
+
+***
+
+### 9. 升级数据库的正确写法
+&emsp;&emsp;之前的写法，升级后原本的数据会全部丢失。  
+&emsp;&emsp;每一个数据库版本都会对应一个版本号，当指定的数据库版本号大于当前数据库版本号，就会进入```onUpgrade()```方法中执行更新操作。  
+&emsp;&emsp;每当升级一般数据库版本的时候，```onUpgrade()```方法都一定要写一个相应的```if```判断语句。    
+&emsp;&emsp;  
+&emsp;&emsp;第一版只需要创建一张```Book```表。第二版添加一张```Category```表。第三版要给```Book```表和```Category```表之间建立关系，需要在```Book```表中添加一个```category_id```字段。  
+&emsp;&emsp;  
+&emsp;&emsp;第一版：  
+```kotlin
+class MyDatabaseHelper(val context: Context,name : String,version : Int) : SQLiteOpenHelper(context,name,null,version) {
+
+    private val createBook = "create table Book (" +
+            " id integer primary key autoincrement," +
+            " author text," +
+            " price real," +
+            " pages integer," +
+            " name text)"
+
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(createBook)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+
+    }
+
+}
+```
+&emsp;&emsp;第二版：  
+&emsp;&emsp;第二版的时候，用户直接安装第二版程序，就会进入```onCreate()```方法，两张表一起创建。  
+&emsp;&emsp;使用第二版的程序覆盖安装第一版，就会进入升级数据库的操作中，由于```Book```表已存在，只需要创建一张```Category```表。  
+```kotlin
+class MyDatabaseHelper(val context: Context,name : String,version : Int) : SQLiteOpenHelper(context,name,null,version) {
+
+    private val createBook = "create table Book (" +
+            " id integer primary key autoincrement," +
+            " author text," +
+            " price real," +
+            " pages integer," +
+            " name text)"
+
+
+    private val createCategory = "create table Category(" +
+            "id integer primary key autoincrement," +
+            "category_name text," +
+            "category_code integer)"
+
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(createBook)
+        db?.execSQL(createCategory)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+        //如果用户数据库的旧版本号小于等于1，就只会创建一张Category表
+        if(oldVersion <= 1){
+            db?.execSQL(createCategory)
+        }
+    }
+
+}
+```
+&emsp;&emsp;第三版：  
+&emsp;&emsp;在```Book```表的建表语句中添加了一个```category_id```列，当用户直接安装第三版，这个新增的列就已经自动添加成功了。  
+&emsp;&emsp;如果用户之前已经安装了某一版本的程序，现在需要覆盖安装，就会进入升级数据库的操作中。  
+&emsp;&emsp;在```onUpgrade()```方法里，如果当前数据库的版本号是2，就会执行alter命令，为```Book```表新增一个```category_id```列。  
+```kotlin
+class MyDatabaseHelper(val context: Context,name : String,version : Int) : SQLiteOpenHelper(context,name,null,version) {
+
+    private val createBook = "create table Book (" +
+            " id integer primary key autoincrement," +
+            " author text," +
+            " price real," +
+            " pages integer," +
+            " name text," + 
+            " category_id integer)"
+
+
+    private val createCategory = "create table Category(" +
+            "id integer primary key autoincrement," +
+            "category_name text," +
+            "category_code integer)"
+
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(createBook)
+        db?.execSQL(createCategory)
+        Toast.makeText(context,"创建数据库成功",Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+        //如果用户数据库的旧版本号小于等于1，就只会创建一张Category表
+        if(oldVersion <= 1){
+            db?.execSQL(createCategory)
+        }
+        if(oldVersion <= 2){
+            db?.execSQL("alter table Book add column category_id integer")
+        }
+    }
+
+}
+```
