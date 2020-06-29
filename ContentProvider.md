@@ -405,6 +405,7 @@ when(uriMatcher.match(uri)){
 &emsp;&emsp;  
 ```content://com.example.app.provider/table1```对应的 **MIME** 类型：  
 &emsp;&emsp;```vnd.android.cursor.dir/vnd.com.example.app.provider.table1```  
+&emsp;&emsp;  
 ```content://com.example.app.provider/table1/1```对应的 **MIME** 类型：  
 &emsp;&emsp;```vnd.android.cursor.item/vnd.com.example.app.provider.table1```  
 
@@ -416,13 +417,291 @@ when(uriMatcher.match(uri)){
 &emsp;&emsp;将```authority```指定为```包名.provider```  
 &emsp;&emsp;```Exported```属性表示是否允许外部程序访问此```ContentProvider```  
 &emsp;&emsp;```Enabled```属性表示是否启用这个```ContentProvider```  
-
-
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_1.PNG)
 
 &emsp;&emsp;修改```DatabaseProvider```：  
 ```kotlin
+class DatabaseProvider : ContentProvider() {
 
+    /**
+     * 前四个变量分别表示访问Book表中的所有数据、访问Book表中的单条数据、
+     * 访问Category表中的所有数据、访问Category表中的单条数据
+     */
+    private val bookDir = 0
+    private val bookItem = 1
+    private val categoryDir = 2
+    private val categoryItem = 3
+    private val authority = "com.example.datasave.provider"
+    private var dbHelper : MyDatabaseHelper? = null
+
+    /**
+     * 在by lazy代码块中对uriMatcher进行初始化操作
+     * by lazy是一种懒加载技术，代码块中的代码一开始不执行，当UriMatcher变量首次被调用时才会执行，
+     * 并将代码块中最后一行代码的返回值赋值给uriMatcher
+     */
+    private val uriMatcher by lazy {
+        /**
+         * 常量UriMatcher.NO_MATCH = 不匹配任何路径的返回码
+         * 即初始化时不匹配任何东西
+         * addURI(String authority, String path, int code)
+         * 若内容URI = "content://com.example.datasave.provider/book",则返回注册码bookDir
+         */
+        val matcher = UriMatcher(UriMatcher.NO_MATCH)
+        matcher.addURI(authority,"book",bookDir)
+        matcher.addURI(authority,"book/#",bookItem)
+        matcher.addURI(authority,"category",categoryDir)
+        matcher.addURI(authority,"category/#",categoryItem)
+        matcher
+    }
+
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?) = dbHelper?.let {
+        val db = it.writableDatabase
+        val deleteRows = when(uriMatcher.match(uri)){
+            bookDir -> db.delete("Book",selection,selectionArgs)
+            bookItem -> {
+                val bookId = uri.pathSegments[1]
+                db.delete("Book","id = ?", arrayOf(bookId))
+            }
+            categoryDir -> db.delete("Category",selection,selectionArgs)
+            categoryItem -> {
+                val categoryId = uri.pathSegments[1]
+                db.delete("Category","id = ?", arrayOf(categoryId))
+            }
+            else -> 0
+        }
+        deleteRows
+    }?: 0
+
+    override fun getType(uri: Uri) = when(uriMatcher.match(uri)){
+        bookDir -> "vnd.android.cursor.dir/vnd.$authority.book"
+        bookItem -> "vnd.android.cursor.item/vnd.$authority.book"
+        categoryDir -> "vnd.android.cursor.dir/vnd.$authority.category"
+        categoryItem -> "vnd.android.cursor.item/vnd.$authority.category"
+        else -> null
+    }
+
+    /**
+     * insert()方法要求返回一个能够表示这条新增数据的URI
+     * 需要调用Uri.parse()方法将一个内容URI解析成Uri对象
+     * 此URL以新增数据的id结尾
+     */
+    override fun insert(uri: Uri, values: ContentValues?) = dbHelper ?.let {
+        //添加数据
+        val db = it.writableDatabase
+        val uriReturn = when(uriMatcher.match(uri)){
+            bookDir,bookItem -> {
+                val newBookId = db.insert("Book",null,values)
+                Uri.parse("content://$authority/book/$newBookId")
+            }
+            categoryDir,categoryItem -> {
+                val newCategoryId = db.insert("Category",null,values)
+                Uri.parse("content://$authority/category/$newCategoryId")
+            }
+            else -> null
+        }
+        uriReturn
+    }
+
+    /**
+     * 因为代码块只有一行，所有用=符号代替{}符号
+     * context不为null，才执行let函数体
+     * 返回值 = 最后一行/return的表达式
+     * context为空就执行?:操作符返回false初始化失败,不为空则通过let函数返回true表示ContentProvider初始化成功
+     */
+    override fun onCreate() = context?.let {
+        //创建了一个MyDatabaseHelper实例
+        dbHelper = MyDatabaseHelper(it,"BookStore.db",2)
+        true
+    } ?: false
+
+    /**
+     * 根据传入的Uri参数判断用户想要访问哪张表,再调用SQLiteDatabase的query()方法进行查询
+     * 最后将Cursor对象返回
+     * 访问单条数据调用了Uri对象的getPathSegments()方法，会将内容URI权限之后的部分以"/"符号进行分割
+     * 分割后的结果放入字符串列表。第0个位置存放的是路径，第1个位置存放的是id
+     */
+    override fun query(
+        uri: Uri, projection: Array<String>?, selection: String?,
+        selectionArgs: Array<String>?, sortOrder: String?
+    ) = dbHelper?.let {
+        //查询数据
+        var db = it.readableDatabase
+        val cursor = when(uriMatcher.match(uri)){
+            bookDir -> db.query("Book",projection,selection,selectionArgs,null,null,sortOrder)
+            bookItem -> {
+                val bookId = uri.pathSegments[1]
+                db.query("Book",projection,"id = ?", arrayOf(bookId),null,null,sortOrder)
+            }
+            categoryDir -> db.query("Category",projection,selection,selectionArgs,null,null,sortOrder)
+            categoryItem -> {
+                val categoryId = uri.pathSegments[1]
+                db.query("Category",projection,"id = ?", arrayOf(categoryId),null,null,sortOrder)
+            }
+            else -> null
+        }
+        cursor
+    }
+
+    override fun update(
+        uri: Uri, values: ContentValues?, selection: String?,
+        selectionArgs: Array<String>?
+    ) = dbHelper?.let {
+        //更新数据
+        val db = it.writableDatabase
+        val updateRows = when(uriMatcher.match(uri)){
+            bookDir -> db.update("Book",values,selection,selectionArgs)
+            bookItem -> {
+                val bookId = uri.pathSegments[1]
+                db.update("Book",values,"id = ?", arrayOf(bookId))
+            }
+            categoryDir -> db.update("Category",values,selection,selectionArgs)
+            categoryItem -> {
+                val categoryId = uri.pathSegments[1]
+                db.update("Category",values,"id = ?", arrayOf(categoryId))
+            }
+            else -> 0
+        }
+        updateRows
+    }?: 0
+}
 ```
+
+&emsp;&emsp;```ContentProvider```一定要在```AndroidManifest.xml```文件中注册  
+&emsp;&emsp;```<provider>```标签的```android:name```指定了```ContentProvider```的类名。    
+&emsp;&emsp;```android:authoritier```指定了```DatabaseProvider```的```authority```。  
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.datasave">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <provider
+            android:name=".DatabaseProvider"
+            android:authorities="com.example.datasave.provider"
+            android:enabled="true"
+            android:exported="true"></provider>
+        ......
+```
+
+***
+
+#### 2. 在当前项目里  
+&emsp;&emsp;修改```activity_provider_test.xml```布局文件  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".ProviderTest">
+
+    <Button
+        android:id="@+id/Btn_add"
+        android:text="添加"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_query"
+        android:text="查询"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_update"
+        android:text="更新"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_delete"
+        android:text="删除"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_layout.PNG)
+
+&emsp;&emsp;修改```ProviderTest```  
+```kotlin
+class ProviderTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_provider_test)
+
+        var bookId : String? = null
+
+        //添加数据
+        Btn_add.setOnClickListener {
+            val uri = Uri.parse("content://com.example.datasave.provider/book")
+            val values = contentValuesOf("name" to "黑暗骑士","author" to "克里斯托弗·诺兰","pages" to 326,"price" to 74.0)
+            val newUri = contentResolver.insert(uri,values)
+            //insert()方法返回一个Uri对象，这个对象包含了新增数据的id
+            //通过getPathSegments()方法将id取出
+            bookId = newUri?.pathSegments?.get(1)
+        }
+
+        //查询数据
+        Btn_query.setOnClickListener {
+            val uri = Uri.parse("content://com.example.datasave.provider/book")
+            contentResolver.query(uri,null,null,null,null)?.apply {
+                while (moveToNext()){
+                    val name = getString(getColumnIndex("name"))
+                    val author = getString(getColumnIndex("author"))
+                    val pages = getInt(getColumnIndex("pages"))
+                    val price = getDouble(getColumnIndex("price"))
+                    Log.d("ProviderTest：","书名：$name")
+                    Log.d("ProviderTest：","作者：$author")
+                    Log.d("ProviderTest：","页数：$pages")
+                    Log.d("ProviderTest：","价格：$price")
+                    Log.d("ProviderTest：","-----------------------------------------")
+                }
+                close()
+            }
+        }
+
+        //更新数据
+        Btn_update.setOnClickListener {
+            bookId?.let {
+                val uri = Uri.parse("content://com.example.datasave.provider/book/$it")
+                val values = contentValuesOf("name" to "信条","pages" to 288,"price" to 54.1)
+                contentResolver.update(uri,values,null,null)
+            }
+        }
+
+        //删除数据
+        Btn_delete.setOnClickListener {
+            bookId?.let {
+                val uri = Uri.parse("content://com.example.datasave.provider/book/$it")
+                contentResolver.delete(uri,null,null)
+            }
+        }
+    }
+}
+```
+***
+
+#### 3. 运行效果  
+&emsp;&emsp;两个应用都要打开，如果被通信的程序已经关闭，则无法访问。  
+&emsp;&emsp;不知道为什么，虚拟机无法实现通信，实机可以。  
+&emsp;&emsp;无法访问的时候会报以下错误：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_error_1.PNG)
+
+&emsp;&emsp;直接查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_2.PNG)
+
+&emsp;&emsp;添加后查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_3.PNG)
+
+&emsp;&emsp;更新后查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentProvider_4.PNG)
 
 
 
