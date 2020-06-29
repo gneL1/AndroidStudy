@@ -313,6 +313,95 @@ class ContentResolverTest : AppCompatActivity() {
 ***
 
 ## 创建自定义ContentProvider
+### 1. 创建ContentProvider的步骤
+&emsp;&emsp;新建一个类继承```ContentProvider```，重写6个抽象方法。  
+```kotlin
+class MyProvider : ContentProvider() {
 
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<String>?): Int {
+        TODO("Implement this to handle requests to delete one or more rows")
+    }
 
+    override fun getType(uri: Uri): String? {
+        TODO(
+            "Implement this to handle requests for the MIME type of the data" +
+                    "at the given URI"
+        )
+    }
+
+    override fun insert(uri: Uri, values: ContentValues?): Uri? {
+        TODO("Implement this to handle requests to insert a new row.")
+    }
+
+    override fun onCreate(): Boolean {
+        TODO("Implement this to initialize your content provider on startup.")
+    }
+
+    override fun query(
+        uri: Uri, projection: Array<String>?, selection: String?,
+        selectionArgs: Array<String>?, sortOrder: String?
+    ): Cursor? {
+        TODO("Implement this to handle query requests from clients.")
+    }
+
+    override fun update(
+        uri: Uri, values: ContentValues?, selection: String?,
+        selectionArgs: Array<String>?
+    ): Int {
+        TODO("Implement this to handle requests to update one or more rows.")
+    }
+}
+```
+&emsp;&emsp;```onCreate()```：初始化```ContentProvider```的时候调用，通常在这里完成数据库的创建和升级等操作。返回```true```表示```ContentProvider```初始化成功，
+返回```false```则表示失败。  
+&emsp;&emsp;```query()```：```uri```参数用于确定查询哪张表，```projection```用于查询那些列，查询的结果存放在```Cursor```对象中返回。  
+&emsp;&emsp;```insert()```：```uri```用于确定要添加到的表，待添加的数据保存在```values```参数中。添加完成后，返回一个用于表示这条新纪录的```URI```。  
+&emsp;&emsp;```update()```：被修改的行数作为返回值返回。  
+&emsp;&emsp;```delete()```：被删除的行数作为返回值返回。  
+&emsp;&emsp;```getType()```：根据传入的URI返回相应的```MIME```类型。  
+&emsp;&emsp;  
+&emsp;&emsp;  
+#### URI的写法
+&emsp;&emsp;一个标准的内容URI写法是：  
+&emsp;&emsp;```content://com.example.app.provider/table1```  
+&emsp;&emsp;即表示访问的是```com.example.app```这个应用的```table1```表中的数据。  
+&emsp;&emsp;  
+&emsp;&emsp;可以在这个内容URI的后面加上一个```id```：  
+&emsp;&emsp;```content://com.example.app.provider/table1/1```  
+&emsp;&emsp;访问的是```com.example.app```这个应用的```table1```表中```id```为 **1** 的数据。  
+&emsp;&emsp;  
+&emsp;&emsp;还可以使用通配符分别匹配两种格式的内容URI：  
+&emsp;&emsp;```*```表示匹配任意长度的任意字符  
+&emsp;&emsp;能够匹配任意表的内容URI：  
+&emsp;&emsp;```content://com.example.app.provider/*```  
+&emsp;&emsp;能够匹配任意一行数据的内容URI：  
+&emsp;&emsp;```content://com.example.app.provider/table1/#```  
+
+#### UriMatcher
+&emsp;&emsp;可以实现匹配内容URI。  
+&emsp;&emsp;```UriMatcher```提供了一个```addURI(String authority, String path, int code)```方法。  
+&emsp;&emsp;第三个参数是一个自定义代码。  
+```kotlin
+private val bookDir = 0
+private val authority = "com.example.datasave.provider"
+val matcher = UriMatcher(UriMatcher.NO_MATCH)
+matcher.addURI(authority,"book",bookDir)
+```
+&emsp;&emsp;当调用```UriMatcher```的```match(Uri uri)```方法时，将可以将一个```Uri```对象传入，返回值是能匹配这个Uri对象的自定义代码。  
+&emsp;&emsp;通过自定义代码来判断访问的是哪张表的数据。  
+```kotlin
+when(uriMatcher.match(uri)){
+    bookDir -> {
+        ......
+    }
+}
+```
+
+#### MIME
+&emsp;&emsp;一个内容URI对应的 **MIME** 字符串由3部分组成
+1. 必须以```vnd```开头  
+2. 如果内容URI以路径结尾，则后接```android.cursor.dir/```；如果内容URI以id结尾，则后接```android.cursor.item/```  
+3. 最后接上```vnd.<authority>.<path>  
+```content://com.example.app.provider/table1```对应的 **MIME** 类型：  
+&emsp;&emsp;```vnd.android.cursor.dir/vnd.com.example.app.provider.table1```  
 
