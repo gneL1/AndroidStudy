@@ -402,6 +402,35 @@ when(uriMatcher.match(uri)){
 1. 必须以```vnd```开头  
 2. 如果内容URI以路径结尾，则后接```android.cursor.dir/```；如果内容URI以id结尾，则后接```android.cursor.item/```  
 3. 最后接上```vnd.<authority>.<path>```  
+&emsp;&emsp;  
 ```content://com.example.app.provider/table1```对应的 **MIME** 类型：  
 &emsp;&emsp;```vnd.android.cursor.dir/vnd.com.example.app.provider.table1```  
+```content://com.example.app.provider/table1/1```对应的 **MIME** 类型：  
+&emsp;&emsp;```vnd.android.cursor.item/vnd.com.example.app.provider.table1```  
+
+***
+
+### 2. 跨程序数据共享
+#### 1. 在之前数据存储的项目里
+&emsp;&emsp;右键项目包 -> New -> Other -> Content Provier  
+&emsp;&emsp;将```authority```指定为```包名.provider```  
+&emsp;&emsp;```Exported```属性表示是否允许外部程序访问此```ContentProvider```  
+&emsp;&emsp;```Enabled```属性表示是否启用这个```ContentProvider```  
+
+
+
+&emsp;&emsp;修改```DatabaseProvider```：  
+```kotlin
+
+```
+
+
+
+
+
+
+
+
+
+
 
