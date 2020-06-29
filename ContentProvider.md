@@ -163,3 +163,156 @@ class PermissionTest : AppCompatActivity() {
 
 ***
 
+## 访问其他程序中的数据
+### 1. ContentResolver的基本用法
+&emsp;&emsp;想要访问```ContentProvider```中共享的数据，就要借助```ContentResolver```类，可以通过```Context```中的```getContentResolver()```方法获取该类的实例。  
+&emsp;&emsp;```ContentResolver```提供了一系列方法来对数据进行增删改查的操作。  
+&emsp;&emsp;```ContentResolver```的增删改查方法不接收表明参数，而是使用一个```Uri```参数代替，这个参数被称为内容URI。  
+&emsp;&emsp;  
+&emsp;&emsp;内容URI的组成：协议声明 + authority + path  
+&emsp;&emsp;标准格式：```content://com.example.app.provider/table1```  
+&emsp;&emsp;协议声明：```content://```  
+&emsp;&emsp;authority：给不同的应用程序做区分，采用包名命名，如包名是```com.example.app```，那么authority命名为```com.example.app.provider```  
+&emsp;&emsp;path：对同一应用程序的不同表做区分，如```/table1```  
+&emsp;&emsp;  
+&emsp;&emsp;得到内容URI字符串后，还需要将其解析成```Uri```对象才可以作为参数传入。  
+```kotlin
+val uri = Uri.parse("content://com.example.app.provider/table1")
+```
+
+1. 查询  
+```kotlin
+val cursor = ContentResolver.query(
+    uri,
+    projection,
+    selection,
+    selectionArgs,
+    sortOrder
+)
+```
+query()方法参数|对应SQK语句|描述
+:-|:-|:-|
+uri|from table_name|指定查询某个应用程序下的某一张表
+projection|select column1,column2|指定查询的列名
+selection|where column = value|指定where的约束条件
+selectionArgs|-|为where中的占位符提供某个具体的值
+sortOrder|order by column1,column2|指定查询结果的排序方式
+
+&emsp;&emsp;查询完成后返回的是一个```Cursor```对象，通过移动游标的位置遍历```Cursor```的所有行。  
+&emsp;&emsp;记得将```Cursor```对象关闭。  
+```kotlin
+while(cursor.moveToNext()){
+  val column1 = cursor.getString(cursor.getColumnIndex("column1"))
+  val column2 = cursor.getInt(cursor.getColumnIndex("column2"))
+}
+cursor.close()
+```
+
+2. 添加  
+```kotlin
+val values = contentValuesOf("column1" to "text","column2" to 1)
+contentResolver.insert(uri,values)
+```
+
+3. 更新  
+注意这里```arrayOf```里的```1```也是字符串。  
+```kotlin
+val values = contentValueOf("column1" to "")
+contentResolver.update(uri,values,"column1 = ? and column2 = ?",arrayOf("text","1"))
+```
+
+4. 删除  
+```kotlin
+contentResolver.delete(uri,"column2 = ?",arrayOf("1"))
+```
+
+***
+
+### 2. 读取系统联系人
+1. 修改```activity_content_resolver.xml```布局：  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".ContentResolverTest">
+
+    <ListView
+        android:id="@+id/Lv_1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</LinearLayout>
+```
+
+2. 修改```ContentResolverTest```：  
+```kotlin
+class ContentResolverTest : AppCompatActivity() {
+
+    private val contactsList = ArrayList<String>()
+    private lateinit var adapter: ArrayAdapter<String>
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_content_resolver)
+
+        //对ListView初始化
+        adapter = ArrayAdapter(this,android.R.layout.simple_list_item_1,contactsList)
+        Lv_1.adapter = adapter
+        if(ContextCompat.checkSelfPermission(this,Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_CONTACTS),1)
+        }
+        else{
+            readContacts()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when(requestCode){
+            1 -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    readContacts()
+                }
+                else{
+                    Toast.makeText(this,"你拒绝了授权",Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * 使用ContentResolver的query()方法来查询系统的联系人数据
+     * 使用?.操作符和apply操作符简化遍历代码
+     */
+    private fun readContacts(){
+        //查询联系人数据
+        contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,null,null,null,null)?.apply {
+            while (moveToNext()){
+                //获取联系人姓名
+                val displayName = getString(getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
+                //获取联系人手机号
+                val number = getString(getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                contactsList.add("$displayName\n$number")
+            }
+            adapter.notifyDataSetChanged()
+            //关闭cursor对象
+            close()
+        }
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/ContentProvider/contentresolver_1.PNG)
+
+***
+
+## 创建自定义ContentProvider
+
+
+
