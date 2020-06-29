@@ -401,7 +401,7 @@ when(uriMatcher.match(uri)){
 &emsp;&emsp;一个内容URI对应的 **MIME** 字符串由3部分组成
 1. 必须以```vnd```开头  
 2. 如果内容URI以路径结尾，则后接```android.cursor.dir/```；如果内容URI以id结尾，则后接```android.cursor.item/```  
-3. 最后接上```vnd.<authority>.<path>  
+3. 最后接上```vnd.<authority>.<path>```  
 ```content://com.example.app.provider/table1```对应的 **MIME** 类型：  
 &emsp;&emsp;```vnd.android.cursor.dir/vnd.com.example.app.provider.table1```  
 
