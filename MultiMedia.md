@@ -314,6 +314,53 @@ startActivityForResult(intent,takePhoto)
 如果拍照成功，调用```BitmapFactory.decodeStream()```方法将```output_image.jpg```解析成```Bitmap```对象，设置到```ImageView```中显示出来。  
 ```kotlin
 override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    super.onActivityResult(requestCode, resultCode, data)
+    when(requestCode){
+        takePhoto -> {
+            //注意这里比较的时返回结果resultCode
+            if (resultCode == Activity.RESULT_OK){
+                //将拍摄的照片显示出来
+                val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(imageUri))
+                Iv_image.setImageBitmap(rotateIfRequired(bitmap))
+            }
+        }
+    }
+}
+```
+
+> 完整代码：  
+```kotlin
+class CameraAlbumTest : AppCompatActivity() {
+
+    private val takePhoto = 1
+    lateinit var imageUri : Uri
+    lateinit var outputImage : File
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_camera_album_test)
+
+        Btn_takePhoto.setOnClickListener {
+            outputImage = File(externalCacheDir,"output_image.jpg")
+            if(outputImage.exists()){
+                outputImage.delete()
+            }
+            outputImage.createNewFile()
+
+            imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+                FileProvider.getUriForFile(this,"com.example.multimediatest.fileprovider",outputImage)
+            }
+            else{
+                Uri.fromFile(outputImage)
+            }
+            
+            val intent = Intent("android.media.action.IMAGE_CAPTURE")
+            intent.putExtra(MediaStore.EXTRA_OUTPUT,imageUri)
+            startActivityForResult(intent,takePhoto)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when(requestCode){
             takePhoto -> {
@@ -326,4 +373,30 @@ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) 
             }
         }
     }
+
+    /**
+     * 调用照相机程序拍照，会发生照片旋转的问题
+     * 手机认为摄像头打开进行拍摄时手机是横屏的，因此回到竖屏的情况下会发生90度旋转
+     * 在这里对图片方向进行修正
+     */
+    private fun rotateIfRequired(bitmap: Bitmap) : Bitmap{
+        val exif = ExifInterface(outputImage.path)
+        val orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION,ExifInterface.ORIENTATION_NORMAL)
+        return when(orientation){
+            ExifInterface.ORIENTATION_ROTATE_90 -> rotateBitmap(bitmap,90)
+            ExifInterface.ORIENTATION_ROTATE_180 -> rotateBitmap(bitmap,180)
+            ExifInterface.ORIENTATION_ROTATE_270 -> rotateBitmap(bitmap,270)
+            else -> bitmap
+        }
+    }
+
+    private fun rotateBitmap(bitmap: Bitmap,degree : Int):Bitmap{
+        val matrix = Matrix()
+        matrix.postRotate(degree.toFloat())
+        val rotateBitmap = Bitmap.createBitmap(bitmap,0,0,bitmap.width,bitmap.height,matrix,true)
+        //不再需要的Bitmap对象回收
+        bitmap.recycle()
+        return rotateBitmap
+    }
+}
 ```
