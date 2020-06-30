@@ -400,3 +400,103 @@ class CameraAlbumTest : AppCompatActivity() {
     }
 }
 ```
+
+**修改```AndroidManifest.xml```**  
+&emsp;&emsp;因为用到了```FileProider```，它继承自```ContentProvider```，所以要在```AndroidManifest.xml```中进行注册。  
+&emsp;&emsp;```android:name```属性的值固定，```android:authority```的值必须与```FileProvider.getUriForFile()```方法中的第二个参数一致。  
+&emsp;&emsp;```<provider>```标签内部使用```<meta-data>```指定Uri的共享路径，并引用了一个```@xml/file_paths```资源。  
+```xml
+<application
+    android:allowBackup="true"
+    android:icon="@mipmap/ic_launcher"
+    android:label="@string/app_name"
+    android:roundIcon="@mipmap/ic_launcher_round"
+    android:supportsRtl="true"
+    android:theme="@style/AppTheme">
+    ......
+    <provider
+        android:authorities="com.example.multimediatest.fileprovider"
+        android:name="androidx.core.content.FileProvider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths"/>
+    </provider>
+</application>
+```
+
+**新增```file_path.xml```文件**  
+&emsp;&emsp;右键res目录 -> New -> Directory,创建一个xml目录，右键xml目录 -> New -> File，创建一个```file_paths.xml```文件。  
+&emsp;&emsp;```external-path```指定Uri共享，```name```属性随便填，```path```属性表示共享的具体路径，使用单斜线表示将整个SD卡进行共享，也可以仅共享存放```output_image.jpg```这张图片的路径。    
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path
+        name="my_images"
+        path="/"/>
+</paths>
+```
+打开摄像头拍照：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/camera_1.png" width="400" height="680" align=center/>
+
+拍照结果：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/camera_2.png" width="400" height="680" align=center/>
+
+***
+
+### 2. 从相册中选择图片
+```kotlin
+//相册
+private val fromAlbum = 2
+override fun onCreate(savedInstanceState: Bundle?) {
+   ......
+   /**
+     * 构建一个Intent对象，将action指定为Intent.ACTION_OPEN_DOCUMENT，表示打开系统的文件选择器
+     * 给Intent对象设置条件过滤，只允许可打开的图片文件显示出来
+     */
+    Btn_album.setOnClickListener {
+        //打开文件选择器
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+        intent.addCategory(Intent.CATEGORY_OPENABLE)
+        //指定只显示的图片
+        intent.type = "image/*"
+        startActivityForResult(intent,fromAlbum)
+    }
+}
+
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+    ......
+    when(requestCode){
+        /**
+         * 调用返回的Intent对象的getData()方法获取选中图片的Uri
+         * 调用getBitmapFromUri()方法将Uri转换成Bitmap对象，显示到界面上
+         */
+        fromAlbum -> {
+            if (resultCode == Activity.RESULT_OK && data != null){
+                data.data?.let {
+                    //将选择的图片显示出来
+                    val bitmap = getBitmapFromUri(it)
+                    Iv_image.setImageBitmap(bitmap)
+                }
+            }
+        }
+    }
+}
+private fun getBitmapFromUri(uri : Uri) = contentResolver.openFileDescriptor(uri,"r")?.use {
+    BitmapFactory.decodeFileDescriptor(it.fileDescriptor)
+}
+```
+选择图片：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/album_1.png" width="400" height="680" align=center/>
+
+展示效果：  
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/album_2.png" width="400" height="680" align=center/>
+
+***
+
+## 三、播放多媒体文件
+```MediaPlayer```
+
+
+
