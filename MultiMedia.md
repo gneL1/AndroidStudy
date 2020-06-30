@@ -250,3 +250,80 @@ manager.notify(2,notification2)
 ***
 
 ## 二、摄像头和相册
+### 1. 调用摄像头拍照
+**修改```CameraAlbumTest```的布局界面**  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".CameraAlbumTest">
+
+    <Button
+        android:id="@+id/Btn_takePhoto"
+        android:text="照相"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <ImageView
+        android:id="@+id/Iv_image"
+        android:layout_gravity="center_horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+
+**修改```CameraAlbumTest```**  
+1. 创建```File```对象，用于存储拍照后的图片,这里把图片命名为```output_image.jpg```。  
+图片存放在手机SD卡的应用关联缓存目录下，调用```getExternalCacheDir()```得到该目录。  
+应用关联缓存目录是SD卡中专门用于存放当前应用缓存数据的位置，具体路径是```/sdcard/Android/data/包名/cache```。  
+```kotlin
+outputImage = File(externalCacheDir,"output_image.jpg")
+if(outputImage.exists()){
+    outputImage.delete()
+}
+outputImage.createNewFile()
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/camera_path.PNG)
+
+2. 进行版本判断，系统版本低于7.0 就调用```Uri```的```fromFile()```方法将```File```对象转换成```Uri```对象，这个```Uri```对象标识着```output_image.jpg```的本地真实路径。  
+不低于7.0，就调用```FileProvider```的```getUriForFile()```方法将```File```对象转换成一个封装过的```Uri```对象。  
+Build.VERSION_CODES.N = 24 对应 Android版本7.0 (Nougat)，从Android 7.0 开始，直接使用本地真实路径的Uri被认为是不安全的，会抛出一个```FileUriExposedException```异常。  
+```FileProvider```是一种特殊的```ContentProvider```,使用了和```ContentProvider```类似的机制来对数据进行保护，可以选择性的将封装过的```Uri```共享给外部，提高安全性。  
+```kotlin
+imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N){
+    FileProvider.getUriForFile(this,"com.example.multimediatest.fileprovider",outputImage)
+}
+else{
+    Uri.fromFile(outputImage)
+}
+```
+
+3. 构建一个```Intent```对象，并将这个```Intent```的```action```指定为```android.media.action.IMAGE_CAPTURE```，再调用```Intent```的```putExtra()```方法指定图片的输出地址，即刚获得的```Uri```对象，最后调用```startActivityForResult()```启动```Activity```。  
+这里用的是隐式```Intent```,系统会找出能够响应这个```Intent```的```Activity```去启动。  
+```kotlin
+val intent = Intent("android.media.action.IMAGE_CAPTURE")
+intent.putExtra(MediaStore.EXTRA_OUTPUT,imageUri)
+startActivityForResult(intent,takePhoto)
+```
+
+4. 拍完照会有结果返回到```onActivityResult()```。  
+如果拍照成功，调用```BitmapFactory.decodeStream()```方法将```output_image.jpg```解析成```Bitmap```对象，设置到```ImageView```中显示出来。  
+```kotlin
+override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when(requestCode){
+            takePhoto -> {
+                //注意这里比较的时返回结果resultCode
+                if (resultCode == Activity.RESULT_OK){
+                    //将拍摄的照片显示出来
+                    val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(imageUri))
+                    Iv_image.setImageBitmap(rotateIfRequired(bitmap))
+                }
+            }
+        }
+    }
+```
