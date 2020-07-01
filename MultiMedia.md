@@ -599,3 +599,101 @@ class PlayAudioTest : AppCompatActivity() {
 ***
 
 ### 2. 播放视频
+```VideoView```  
+方法名|功能描述
+:-|:-|
+setVideoPath()|设置要播放的视频文件的位置
+start()|开始或继续播放视频
+pause()|暂停播放视频
+resume()|将视频从头开始播放
+seekTo()|从指定的位置开始播放视频
+isPlaying()|判断当前是否增在播放视频
+getDuration()|获取载入视频文件的时常
+
+修改布局文件：  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".PlayerVideoTest">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/Btn_play"
+            android:layout_weight="1"
+            android:text="播放"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/Btn_pause"
+            android:layout_weight="1"
+            android:text="暂停"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/Btn_replay"
+            android:layout_weight="1"
+            android:text="重播"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+    <VideoView
+        android:id="@+id/videoView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+&emsp;&emsp;```VideoView```不支持直接播放```assets```目录下的视频资源。  
+&emsp;&emsp;```res```目录下允许再创建一个```raw```目录，音频、视频类的资源文件可以放在这里，```VideoView```可以直接播放这个目录下的视频资源。  
+&emsp;&emsp;右键app/src/main/res -> New -> Directory，输入```raw```完成创建，把视频资源放里面。  
+&emsp;&emsp;  
+修改```PlayerVideoTest```：  
+&emsp;&emsp;```suspend```释放资源
+```kotlin
+class PlayerVideoTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_player_video_test)
+
+        val uri = Uri.parse("android.resource://$packageName/${R.raw.video}")
+        videoView.setVideoURI(uri)
+
+        Btn_play.setOnClickListener {
+            if(!videoView.isPlaying){
+                videoView.start()
+            }
+        }
+
+        Btn_pause.setOnClickListener {
+            if(videoView.isPlaying){
+                videoView.pause()
+            }
+        }
+
+        Btn_replay.setOnClickListener {
+            if (videoView.isPlaying){
+                videoView.resume()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        videoView.suspend()
+    }
+}
+```
+<img src="https://github.com/gneL1/AndroidStudy/blob/master/photos/MultiMedia/video_1.png" width="400" height="680" align=center/>
+
+
