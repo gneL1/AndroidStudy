@@ -388,3 +388,80 @@ class ServicePageTest : AppCompatActivity() {
     }
 }
 ```
+点击绑定服务：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/service_4.PNG)
+
+***
+
+## Servide的生命周期
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/service_life.png)
+
+* 4个手动调用的方法：  
+
+手动调用方法|作用
+:-|:-|
+startService()|启动服务
+stopService()|关闭服务
+bindService()|绑定服务
+unbindService()|解绑服务
+
+* 5个自动调用的方法：  
+
+内部自动调用的方法|作用
+:-|:-|
+onCreate()|创建服务
+onStartCommand()|开始服务
+onDestroy()|销毁服务
+onBind()|绑定服务
+onUnbind()|解绑服务
+
+* 关于操作```Service```  
+&emsp;&emsp;```startService()```、```stopService()```只能启动/关闭```Service```，不能操作```Service```。  
+&emsp;&emsp;```bindService()```、```unbindService()```除了绑定```Service```，还能操作```Service```。  
+
+* 关于```Service```何时销毁  
+&emsp;&emsp;```startService()```开启的```Service```，调用者退出后，```Service```仍然存在。  
+&emsp;&emsp;```bindService()```开启的```Service```，```Service```随着调用者退出而销毁。  
+&emsp;&emsp;  
+&emsp;&emsp;特别值得注意的是，当绑定```Service```后，关闭```Activity```，由于不会自动解绑，程序会报错  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/thread_error_2.PNG)
+
+**解决方法：**  
+在```MyService```中：  
+```kotlin
+class MyService : Service() {
+    ......
+    companion object{
+        var isBinding = false
+    }
+    
+    override fun onBind(intent: Intent): IBinder {
+        isBinding = true
+        return mBinder
+    }
+    
+    override fun onUnbind(intent: Intent?): Boolean {
+        Log.d(tag,"onUnbind executed")
+        isBinding = false
+        return super.onUnbind(intent)
+    }
+}
+```
+在```ServicePageTest```中：  
+```kotlin
+class ServicePageTest : AppCompatActivity() {
+    ......
+    override fun onDestroy() {
+        super.onDestroy()
+        if (MyService.isBinding){
+            unbindService(connection)
+        }
+    }
+}
+```
+运行效果：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/unbind_1.PNG)
+
+
+
+
