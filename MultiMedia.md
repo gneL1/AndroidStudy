@@ -496,7 +496,106 @@ private fun getBitmapFromUri(uri : Uri) = contentResolver.openFileDescriptor(uri
 ***
 
 ## 三、播放多媒体文件
-```MediaPlayer```
+### 1. 播放音频
+```MediaPlayer```类控制音频的播放。  
 
+方法名|功能描述
+:-|:-|
+setDataSource()|设置要播放的音频文件的位置
+prepare()|在开始播放之前调用，以完成准备工作
+start()|开始或继续播放音频
+pause()|暂停播放音频
+reset()|将MediaPlayer对象重置到刚刚创建的状态
+seekTo()|从指定的位置开始播放音频
+stop()|停止播放音频。调用后的MediaPlauer无法再播放音频
+release()|释放与MediaPlayer对象相关的资源
+isPlaying()|判断当前MediaPlayer是否正在播放音频
+getDuration()|获取载入的音频文件的时常
 
+&emsp;&emsp;创建一个```MediaPlayer```对象，调用```setDataSource()```方法设置音频文件的路径，再调用```prepare()```方法进入准备状态。接下来调用```start()```方法开始播放音频，```pause```暂停播放，调用```reset()```方法停止播放。  
 
+修改布局文件：  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".PlayAudioTest">
+
+    <Button
+        android:id="@+id/Btn_play"
+        android:text="播放"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_pause"
+        android:text="暂停"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_stop"
+        android:text="停止"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+&emsp;&emsp;  
+&emsp;&emsp;```assets```目录可以存放任意文件和子目录，这些文件和子目录可以在打包的时候一并被打包到安装文件中，在程序中可以借助```AssetManager```类提供的接口对```assets```目录下的文件进行读取。  
+&emsp;&emsp;右键app/src/main -> New -> Directory，输入assets创建完成。  
+
+修改```PlayAudioTest```文件：  
+&emsp;&emsp;在```initMediaPlayer()```方法中，通过```getAssets()```方法获取```AssetManager```实例，```AssetManager```可用于读取```assets```目录下的任何资源。调用```openFd()```方法将音频文件句柄打开，再调用```setDataSource()```和```prepare()```为```MediaPlayer```做好播放前的准备。  
+```kotlin
+class PlayAudioTest : AppCompatActivity() {
+
+    private val mediaPlayer = MediaPlayer()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_play_audio_test)
+        
+        initMediaPlayer()
+        Btn_play.setOnClickListener {
+            if (!mediaPlayer.isPlaying){
+                mediaPlayer.start()
+            }
+        }
+
+        Btn_pause.setOnClickListener {
+            if(mediaPlayer.isPlaying){
+                mediaPlayer.pause()
+            }
+        }
+
+        Btn_stop.setOnClickListener {
+            if(mediaPlayer.isPlaying){
+                mediaPlayer.reset()
+                initMediaPlayer()
+            }
+        }
+    }
+
+    private fun initMediaPlayer(){
+        val assetManager = assets
+        val fd = assetManager.openFd("ずっと真夜中でいいのに。-眩しいDNAだけ.mp3")
+        mediaPlayer.setDataSource(fd.fileDescriptor,fd.startOffset,fd.length)
+        mediaPlayer.prepare()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaPlayer.stop()
+        mediaPlayer.release()
+    }
+
+}
+```
+
+***
+
+### 2. 播放视频
