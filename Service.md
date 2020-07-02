@@ -599,3 +599,5 @@ class MyIntentService : IntentService("MyIntentService") {
 ```
 点击按钮，运行效果：  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/IntentService.PNG)
+&emsp;&emsp;可以看到```MyIntentService```和```ServicePageTest```所在的线程名不一样，而```onDestroy()```方法也得到了执行，说明```MyIntentService```在运行完毕后自动停止了。  
+
