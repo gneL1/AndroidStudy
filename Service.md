@@ -537,4 +537,65 @@ class MyService : Service(){
     }    
 }
 ```
+&emsp;&emsp;  
+&emsp;&emsp;上面的写法不方便。Android提供了```IntentService```类，可以创建一个异步的、会自动停止的```Service```。  
+* **新建一个```MyIntentService```继承自```IntentService```**  
+&emsp;&emsp;必须先调用父类的构造函数，传入一个字符串，字符串可以随意指定，只在调试的时候有用。在```onHandleIntent()```方法中处理耗时逻辑。  
+```kotlin
+class MyIntentService : IntentService("MyIntentService") {
+    override fun onHandleIntent(intent: Intent?) {
+        Log.d("IntentService","当前线程是：${Thread.currentThread().name}")
+    }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("IntentService","MyIntentService执行onDestroy")
+    }
+}
+```
+
+* **修改布局文件增加一个按钮**  
+```xml
+......
+<Button
+        android:id="@+id/Btn_intentService"
+        android:text="开始IntentService"
+        android:textAllCaps="false"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+......
+```
+
+* **修改```ServicePageTest```**  
+```kotlin
+    ......
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ......
+        Btn_intentService.setOnClickListener {
+            //打印主线程的id
+            Log.d("IntentService","当前主线程是：${Thread.currentThread().name}")
+            val intent = Intent(this,MyIntentService::class.java)
+            startService(intent)
+        }
+
+    }
+```
+
+* **修改```AndroidManifest.xml```**  
+```xml
+<application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".ServicePageTest"></activity>
+
+        <service android:name=".MyIntentService"
+            android:enabled="true"
+            android:exported="true"/>
+        ......
+```
+点击按钮，运行效果：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/IntentService.PNG)
