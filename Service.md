@@ -393,7 +393,7 @@ class ServicePageTest : AppCompatActivity() {
 
 ***
 
-## Servide的生命周期
+### 2. Servide的生命周期
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/service_life.png)
 
 * 4个手动调用的方法：  
@@ -462,6 +462,79 @@ class ServicePageTest : AppCompatActivity() {
 运行效果：  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/unbind_1.PNG)
 
+***
 
+### 3. 前台Service
+&emsp;&emsp;从Android 8.0 开始，只有当应用保持在前台可见状态下，```Service```才能保证稳定运行。一旦应用进入后台，```Service```随时都有可能被系统回收。  
+&emsp;&emsp;使用前台```Service```，```Service```可以一直保持运行状态，它会有一个正在运行的图标在系统的状态栏显示，下拉状态可以看到更加详细的信息。  
+&emsp;&emsp;  
+**修改```MyService```：**  
+&emsp;&emsp;构建```Notification```对象后，调用```startForeground()```方法。  
+&emsp;&emsp;```startForeground(int id, Notification notification)```  
+&emsp;&emsp;第一个参数是通知的id,类似于```notify()```的第一个参数。  
+&emsp;&emsp;第二个参数是构建的```Notification```对象。  
+```kotlin
+class MyService : Service() {
+    override fun onCreate() {
+        super.onCreate()
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+            val channel = NotificationChannel("my_service","前台Service通知",NotificationManager.IMPORTANCE_DEFAULT)
+            manager.createNotificationChannel(channel)
+        }
+        val intent = Intent(this,ServicePageTest::class.java)
+        val pi = PendingIntent.getActivity(this,0,intent,0)
+        val notification = NotificationCompat.Builder(this,"my_service")
+            .setContentTitle("这是文本")
+            .setContentText("这是内容")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setLargeIcon(BitmapFactory.decodeResource(resources,R.drawable.ic_launcher_background))
+            .setContentIntent(pi)
+            .build()
+        startForeground(1,notification)
+        Log.d(tag,"onCreate executed")
+    }
+    ......
+}
+```
+&emsp;&emsp;  
+**修改```AndroidManifest.xml```：**  
+&emsp;&emsp;从Android 9.0 系统开始，使用前台```Service```必须在```AndroidManifest.xml```中进行权限声明，不然程序会报错。  
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.servicetest">
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    ......
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Service/service_foreground.gif)
+
+***
+
+### 4. IntentService
+&emsp;&emsp;```Service```中的代码都是默认运行在主线程中的，如果在```Service```里执行一些耗时的逻辑，容易出现```ANR```(Application Not Responding)。  
+&emsp;&emsp;可以在```Service```的每个具体方法里开启一个子线程，在子线程里处理耗时逻辑：  
+```kotlin
+class MyService : Service(){
+    override fun onStartCommand(intent : Intent,flags : Int,startId : Int) : Int{
+        thread {
+            //处理具体逻辑
+        }
+        return super.onStartCommand(intent,flags,startId)
+    }    
+}
+```
+&emsp;&emsp;  
+&emsp;&emsp;但是```Service```一旦启动，必须调用```stopService```或```stopSelf()```方法，或者被系统回收，```Service```才会停止。  
+```kotlin
+class MyService : Service(){
+    override fun onStartCommand(intent : Intent,flags : Int,startId : Int) : Int{
+        thread {
+            //处理具体逻辑
+            stopSelf()
+        }
+        return super.onStartCommand(intent,flags,startId)
+    }    
+}
+```
 
