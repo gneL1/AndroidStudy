@@ -389,4 +389,289 @@ class DrawerLayoutTest : AppCompatActivity() {
 ***
 
 ## 三、悬浮按钮和可交互提示
+### 1. FloatingActionButton
+&emsp;&emsp;默认以```colorAccent```作为按钮的颜色。```app:elevation```属性给```FloatingActionButton```指定一个高度值。高度值越大，投影范围也越大，投影效果越淡。高度值越小，投影范围越小，投影效果越浓。    
+修改布局文件  
+```xml
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".FloatingAndSnackbar">
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom|end"
+        android:src="@drawable/ic_done"
+        android:elevation="8dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</FrameLayout>
+```
+
+修改```Activity```文件  
+```kotlin
+class FloatingAndSnackbar : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_floating_and_snackbar)
+
+        fab.setOnClickListener {
+            Toast.makeText(this,"点击了悬浮按钮",Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/FloatingActionButton.gif)
+
+***
+
+### 2. Snackbar
+&emsp;&emsp;```Snackbar```允许在提示中加入一个可交互的按钮，当用户点击按钮的时候，可以执行一些额外的逻辑操作。  
+```kotlin
+class FloatingAndSnackbar : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_floating_and_snackbar)
+
+        fab.setOnClickListener {
+            Snackbar.make(it,"删除数据",Snackbar.LENGTH_SHORT)
+                .setAction("Undo"){
+                    Toast.makeText(this,"数据恢复",Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+    }
+}
+```
+&emsp;&emsp;调用```Snackbar```的```make()```方法来创建一个```Snackbar```对象。第一个参数传入一个```View```，```Snackbar```会使用这个```View```自动查找最外层的布局。第二个参数是```Snackbar```中显示的内容。第三个参数是展示时常。  
+&emsp;&emsp;调用```setAction()```方法来设置一个动作，从而让```Snackbar```与用户交互。这里在动作按钮的点击事件里弹出一个Toast提示，最后调用```show()```方法让```Snackbar```显示出来。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/snack.gif)
+
+***
+
+### 3. CoordinatorLayout
+&emsp;&emsp;```CoordinatorLayout```是一个加强版的```FrameLayout```，可以监听其所有子控件的各种事件，并作出合理响应。  
+&emsp;&emsp;上面的案例中，弹出的```Snackbar```将悬浮按钮遮挡了，使用```CoordinatorLayout```监听```Snackbar```的弹出事件，它会自动将内部的```FloatActionButton```向上偏移，从而确保不会被```Snackbar```遮挡。  
+&emsp;&emsp;  
+修改布局文件  
+```xml
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".FloatingAndSnackbar">
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab"
+        android:layout_margin="16dp"
+        android:layout_gravity="bottom|end"
+        android:src="@drawable/ic_done"
+        android:elevation="8dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/CoordinatorLayout.gif)
+
+&emsp;&emsp;```Snackbar```看似不是```CoordinatorLayout```的子控件，但在```Snackbar```的```make()```方法中传入的第一个参数，是用来指定```Snackbar```基于哪个View触发。这里传入的是```FloatingActionButton```本身，而```FloatingActionButton```是```CoordinatorLayout```中的子控件，所以这个事件能被监听到。  
+
+***
+
+## 四、卡片式布局
+### 1. MaterialCardView
+&emsp;&emsp;```MaterialCardView```是一个```FrameLayout```，```app:cardBackgroundColor```属性设置卡片圆角的弧度，```android:elevation```属性设置卡片的阴影。  
+```xml
+<androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="4dp"
+        android:elevation="5dp"/>
+```
+
+实现一个水果列表效果：  
+#### (1) 添加依赖
+&emsp;&emsp;**Glide** 是一个开源图片加载库。  
+```gradle
+implementation  'androidx.recyclerview:recyclerview:1.1.0'
+implementation  'com.github.bumptech.glide:glide:4.9.0'
+```
+
+#### (2) 修改布局文件
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MaterialCardViewTest">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/Tb_1"
+            android:background="@color/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_done"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</LinearLayout>
+```
+
+#### (3) 定义一个Fruit类
+```kotlin
+//name是水果名字，imageId是水果对应的图片id资源
+class Fruit(val name : String,val imageId: Int)
+```
+
+#### (4) layout目录下新建一个fruit_item.xml
+&emsp;&emsp;ImageVie中使用了一个```scaleType```属性，指定图片的缩放模式。```centerCrop```可以让图片保持原有比例填充满ImageView。  
+```xml
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_margin="5dp"
+    app:cardCornerRadius="4dp"
+    android:layout_height="wrap_content">
+        
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:id="@+id/fruitImage"
+            android:scaleType="centerCrop"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"/>
+
+        <TextView
+            android:id="@+id/fruitName"
+            android:layout_gravity="center_horizontal"
+            android:layout_margin="5dp"
+            android:textSize="16sp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
+```
+
+#### (5) 新建一个适配器FruitAdapter类
+&emsp;&emsp;```Glide.with()```方法传入一个```Context```、```Activity```或```Fragment```参数，然后调用```load()```方法加载图片，可以是URL地址、本地路径或一个资源id，最后调用```into()```方法将图片设置到具体某个ImageView中。  
+```kotlin
+class FruitAdapter(private val context: Context, private val fruitList: List<Fruit>) :
+    RecyclerView.Adapter<FruitAdapter.ViewHolder>() {
+
+    inner class ViewHolder(view:View):RecyclerView.ViewHolder(view){
+        val fruitImage : ImageView = view.findViewById(R.id.fruitImage)
+        val fruitName : TextView = view.findViewById(R.id.fruitName)
+    }
+    
+    override fun getItemCount(): Int {
+        return  fruitList.size
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val fruit = fruitList[position]
+        holder.fruitName.text = fruit.name
+        Glide.with(context).load(fruit.imageId).into(holder.fruitImage)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(context).inflate(R.layout.fruit_item,parent,false)
+        return ViewHolder(view)
+    }
+
+}
+```
+
+#### (6) 修改Activity文件
+```kotlin
+class MaterialCardViewTest : AppCompatActivity() {
+
+    private val fruits = mutableListOf(
+        Fruit("Apple",R.drawable.apple),
+        Fruit("Banana",R.drawable.banana),
+        Fruit("Orange",R.drawable.orange),
+        Fruit("Watermelon",R.drawable.watermelon),
+        Fruit("Pear",R.drawable.pear),
+        Fruit("Grape",R.drawable.grape),
+        Fruit("Pineapple",R.drawable.pineapple),
+        Fruit("Strawberry",R.drawable.strawberry),
+        Fruit("Cherry",R.drawable.cherry),
+        Fruit("Mango",R.drawable.mango)
+    )
+
+    private val fruitList = ArrayList<Fruit>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_material_card_view_test)
+
+        setSupportActionBar(toolBar)
+
+        initFruits()
+        val layoutManager = GridLayoutManager(this,2)
+        recyclerView.layoutManager = layoutManager
+        val adapter = FruitAdapter(this,fruitList)
+        recyclerView.adapter = adapter
+
+    }
+
+    private fun initFruits(){
+        fruitList.clear()
+        repeat(50){
+            val index = (0 until fruits.size).random()
+            fruitList.add(fruits[index])
+        }
+    }
+
+}
+```
+运行后发现出错：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/MaterialCardView_error_1.PNG)
+
+解决方法：  
+&emsp;&emsp;修改```fruit_item.xml```文件，增加```android:theme```属性，设置为 **Material** 相关的主题， ```MaterialCardView```组件要求运行在 **Material** 主题下。    
+```xml
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+    android:layout_margin="5dp"
+    app:cardCornerRadius="4dp"
+    android:layout_height="wrap_content">
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/card_recyclerview.gif)
+
+***  
+
+### 2. AppBarLayout
+
 
