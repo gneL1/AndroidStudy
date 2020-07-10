@@ -166,3 +166,15 @@ android {
 ```
 * 然后 File -> Settings -> Kotlin Compiler，确保```Target JVM version```这一栏为1.8  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/ViewModel_fix_1.png)  
+
+运行效果：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/ViewModel_2.gif)
+
+***
+
+## 二、Lifecycles
+&emsp;&emsp;为什么需要感知 **Activity** 生命周期的情况？  
+&emsp;&emsp;如果某个界面发起一条网络请求，但是当请求得到响应的时候，界面或许已经关闭了，这个时候就不应该继续对响应的结果进行处理，因此需要能够时刻感知 **Activity** 的生命周期，以便在适当的时候进行相应的逻辑控制。  
+&emsp;&emsp;**Lifecycles** 可以让一个类轻松感知到 **Activity** 的生命周期，同时又不需要在 **Activity** 中编写大量的逻辑处理。  
+
+
