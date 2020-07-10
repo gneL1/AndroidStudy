@@ -741,3 +741,354 @@ class MaterialCardViewTest : AppCompatActivity() {
 ```
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/AppBarLayout_2.gif)
 
+***
+
+## 五、下拉刷新
+&emsp;&emsp;**SwipeRefreshLayout** 用于实现下拉刷新，把想要实现下拉刷新的控件放置到 **SwipeRefreshLayout** 中，就可以让这个控件支持下拉刷新。  
+1. 添加依赖  
+```gradle
+implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
+```
+
+2. 修改布局文件  
+&emsp;&emsp;注意**SwipeRefreshLayout** 也要使用```app:layout_behavior```声明布局行为。  
+```xml
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+    android:id="@+id/swipeRefresh"
+    app:layout_behavior="@string/appbar_scrolling_view_behavior"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+```
+
+3. 修改```Activity```文件  
+&emsp;&emsp;调用 **SwipeRefreshLayout** 的```setOnSchemaResources()```方法来设置下拉刷新进度条的颜色，这里使用主题中的```colorPrimary```作为进度条的颜色。  
+&emsp;&emsp;调用```setOnRefreshListener()```方法来设置一个下拉刷新的监听器，当用户进行了下拉刷新操作时，就会回调到Lambda表达式中，在这里处理刷新逻辑。  
+&emsp;&emsp;在刷新逻辑```refreshFruits()```中，开启一个线程，然后将线程沉睡两秒钟。因为本地刷新操作速度非常快，如果不将线程沉睡的话，刷新立刻就结束了，从而看不到刷新的过程，网络刷新就不用沉睡。沉睡结束后，调用```runOnUiThread()```方法将线程切换回主线程，调用```initFruits()```方法重新生成数据，调用```FruitAdapter```的```notifyDataSetChanged()```方法通知数据发生了变化，最后调用 **SwipeRefreshLayout** 的```setRefreshing()```方法并传入false，表示刷新事件结束，并隐藏刷新进度条。  
+```kotlin
+
+override fun onCreate(savedInstanceState: Bundle?) {
+    ......
+    swipeRefresh.setColorSchemeResources(R.color.colorPrimary)
+    swipeRefresh.setOnRefreshListener {
+        refreshFruits(adapter)
+    }
+}
+private fun refreshFruits(adapter: FruitAdapter){
+    thread {
+        Thread.sleep(2000)
+        runOnUiThread {
+            initFruits()
+            adapter.notifyDataSetChanged()
+            swipeRefresh.isRefreshing = false
+        }
+    }
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/SwipeRefreshLayout.gif)
+
+***
+
+## 六、可折叠式标题栏
+### 1. CollapsingToolbarLayout
+&emsp;&emsp;**CollapsingToolbarLayout** 是一个作用于 **Toolbar** 基础之上的布局，不能单独存在，被限定只能作为 **AppBarLayout** 的直接子布局来使用，**AppBarLayout** 又必须是**CoordinatorLayout** 的子布局。  
+&emsp;&emsp;  
+#### 新建一个```FruitActivity```，修改布局文件   
+```xml
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".FruitActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:layout_height="250dp">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsingToolbar"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:contentScrim="@color/colorPrimary"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/fruitImageView"
+                android:scaleType="centerCrop"
+                app:layout_collapseMode="parallax"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolBar"
+                app:layout_collapseMode="pin"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"/>
+
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.google.android.material.card.MaterialCardView
+                android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"
+                android:layout_marginBottom="15dp"
+                android:layout_marginLeft="15dp"
+                android:layout_marginRight="15dp"
+                android:layout_marginTop="35dp"
+                app:cardCornerRadius="4dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:id="@+id/fruitContentText"
+                    android:layout_margin="10dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_comment"
+        app:layout_anchor="@id/appBar"
+        app:layout_anchorGravity="bottom|end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+```
+* 分析  
+```xml
+<com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsingToolbar"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:contentScrim="@color/colorPrimary"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+```
+&emsp;&emsp;```android:theme```属性指定了```@style/ThemeOverlay.AppCompat.Dark.ActionBar```深色主题，这样标题栏字体就是浅色的，不指定的话字体是深色的不好看，可参照之前的 **Toolbar** 设定，这里是把主题的指定提上一层。  
+&emsp;&emsp;```app:contentScrim```属性用于指定 **CollapsingToolbarLayout** 在趋于折叠状态以及折叠之后的背景色，折叠之后就是一个普通的 **Toolbar**。  
+&emsp;&emsp;```app:layout_scrollFlags```也是从**Toolbar** 中移过来的，```scroll```表示当 **CollapsingToolbarLayout** 会随着水果内容详情的滚动一起滚动，```exitUntilCollapsed```表示当 **CollapsingToolbarLayout** 随着滚动完成折叠之后就保留在界面上，不再移除屏幕。  
+
+***
+
+```xml
+<com.google.android.material.appbar.CollapsingToolbarLayout
+            ......>
+
+    <ImageView
+        android:id="@+id/fruitImageView"
+        android:scaleType="centerCrop"
+        app:layout_collapseMode="parallax"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolBar"
+        app:layout_collapseMode="pin"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"/>
+
+</com.google.android.material.appbar.CollapsingToolbarLayout>
+```
+&emsp;&emsp;```app:layout_collapseMode```用于指定当前控件在 **CollapsingToolbarLayout** 折叠过程中的折叠模式，其中 **Toolbar** 指定成```pin```，表示在折叠的过程中位置保持不变。**ImageView** 指定成```parallax```，表示会在折叠的过程中产生一定的错位偏移。  
+
+***
+
+```xml
+<androidx.core.widget.NestedScrollView
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+```
+&emsp;&emsp;**NestedScrollView** 和 **AppBarLayout** 是平级的，**ScrollView** 允许以滚动的方式查看屏幕外的数据，而**NestedScrollView** 在此基础上增加了嵌套响应滚动事件的功能。通过```app:layout_behavior```属性指定一个布局行为。**NestedScrollView** 内部只允许一个直接子布局。  
+
+***
+
+```xml
+<com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_comment"
+        app:layout_anchor="@id/appBar"
+        app:layout_anchorGravity="bottom|end"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+```
+&emsp;&emsp;**FloatingActionButton** 和 **AppBarLayout** 以及 **NestedScrollView** 是平级的，使用```app:layout_anchor```属性指定了一个锚点，锚点设置为 **AppBarLayout** ，这样悬浮按钮会出现在标题栏的区域内。```app:layout_anchorGravity```属性将悬浮按钮定位在标题栏区域的右下角。  
+
+***
+
+#### 修改```FruitActivity```  
+```kotlin
+class FruitActivity : AppCompatActivity() {
+
+    companion object{
+        const val FRUIT_NAME = "fruit_name"
+        const val FRUIT_IMAGE_ID = "fruit_image_id"
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_fruit)
+
+        val fruitName = intent.getStringExtra(FRUIT_NAME) ?: ""
+        val fruitImageId = intent.getIntExtra(FRUIT_IMAGE_ID,0)
+        setSupportActionBar(toolBar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        collapsingToolbar.title = fruitName
+        Glide.with(this).load(fruitImageId).into(fruitImageView)
+        fruitContentText.text = generateFruitContent(fruitName)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when(item.itemId){
+            android.R.id.home -> {
+                finish()
+                return true
+            }
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    private fun generateFruitContent(fruitName:String) = fruitName.repeat(500)
+}
+```
+&emsp;&emsp;在```onCreate()```方法中，通过```Intent```获取传入的水果名和水果图片的资源id。然后配置 **Toolbar** ，并启用Home按钮，Home按钮默认图标是一个返回箭头。  
+&emsp;&emsp;调用 **CollapsingToolbarLayout** 的```setTitle()```方法将水果名设置为标题，使用```Glide```设置标题图片，在```generateFruitContent()```方法中将水果名循环拼接500次设置为内容。  
+&emsp;&emsp;在```onOptionsItemSelected()```方法中处理了Home按钮的点击事件，当点击按钮时，调用```finish()```方法关闭当前的Activity，从而返回上一个Activity。  
+
+#### 修改```FruitAdapter```
+```kotlin
+override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    val view = LayoutInflater.from(context).inflate(R.layout.fruit_item,parent,false)
+    val holder = ViewHolder(view)
+    //在最外层布局注册一个点击事件
+    holder.itemView.setOnClickListener {
+        val position = holder.adapterPosition
+        val fruit = fruitList[position]
+        val intent = Intent(context,FruitActivity::class.java).apply {
+            putExtra(FruitActivity.FRUIT_NAME,fruit.name)
+            putExtra(FruitActivity.FRUIT_IMAGE_ID,fruit.imageId)
+        }
+        context.startActivity(intent)
+    }
+    return holder
+//  return ViewHolder(view)
+}
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/CollapsingToolbarLayout.gif)
+
+***
+
+### 2. 设置沉浸式状态栏
+&emsp;&emsp;```android:fitsSystemWindows```属性指定成true，就表示该控件会出现在系统状态栏里。这里是给 **ImageView** 设置这个属性，但只给 **ImageView** 设置是没效果的，必须将 **ImageView** 布局结构中的所有父布局都设置上，并且将状态栏的颜色指定成透明色。    
+&emsp;&emsp;  
+1. 修改```activity_fruit.xml```布局文件  
+```xml
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".FruitActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBar"
+        android:layout_width="match_parent"
+        android:fitsSystemWindows="true"
+        android:layout_height="250dp">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/collapsingToolbar"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:contentScrim="@color/colorPrimary"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            android:fitsSystemWindows="true"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <ImageView
+                android:id="@+id/fruitImageView"
+                android:scaleType="centerCrop"
+                app:layout_collapseMode="parallax"
+                android:fitsSystemWindows="true"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+          ......
+```
+
+2. 修改```res/values/style.xml```文件  
+&emsp;&emsp;定义一个```FruitActivityTheme```主题，专门给```FruitActivity```使用。```FruitActivityTheme```的父主题是```AppTheme```，它继承了```AppTheme```中的所有特性，在此基础上将状态栏的颜色指定成透明色。  
+```xml
+<resources>
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="FruitActivityTheme" parent="AppTheme">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+</resources>
+```
+
+3. 修改```AndroidManifest.xml```文件  
+&emsp;&emsp;使用```android:theme```属性单独给```FruitActivity```指定了```FruitActivityTheme```这个主题。  
+```xml
+<application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".FruitActivity"
+                  android:theme="@style/FruitActivityTheme"/>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/CollapsingToolbarLayout_2.gif)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
