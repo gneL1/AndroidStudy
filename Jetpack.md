@@ -146,7 +146,9 @@ class VMPage : AppCompatActivity() {
 &emsp;&emsp;  
 如果```sp.edit```出现报错如下图：  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/ViewModel_Error.png)  
-&emsp;&emsp;那是因为项目用jvm1.6进行构建，而库用到1.8版本导致不兼容。  
+> ```Cannot inline bytecode built with JVM target 1.8 into bytecode that is being built with JVM target 1.6. Please specify proper '-jvm-target' option```  
+
+&emsp;&emsp;这是因为项目用jvm1.6进行构建，而库用到1.8版本导致不兼容。  
 &emsp;&emsp;解决方法如下：  
 * 修改```app/build.gradle```  
 ```gradle
