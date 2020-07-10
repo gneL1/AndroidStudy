@@ -97,4 +97,70 @@ class VMPageViewModelFactory(private val countReserved : Int) : ViewModelProvide
     }
 }
 ```
-&emsp;&emsp;```VMPageViewModelFactory```的构造函数中也接收了一个```countReserved```参数。```ViewModelProvider.Factory```接口要求必须实现```create()```方法，这里在```create()```方法中创建了```VMPageViewModel```的实例，并将参数```countReserved```传了进去。
+&emsp;&emsp;```VMPageViewModelFactory```的构造函数中也接收了一个```countReserved```参数。```ViewModelProvider.Factory```接口要求必须实现```create()```方法，这里在```create()```方法中创建了```VMPageViewModel```的实例，并将参数```countReserved```传了进去。```create()```方法的执行时机和```Activity```的声明周期无关，不会产生重复创建的问题。  
+
+3. 修改```VMPage```  
+```kotlin
+class VMPage : AppCompatActivity() {
+
+    lateinit var viewModel: VMPageViewModel
+
+    lateinit var sp : SharedPreferences
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_v_m_page)
+        
+        sp = getPreferences(Context.MODE_PRIVATE)
+        val countReserved = sp.getInt("count_reserved",0)
+        viewModel = ViewModelProvider(this,VMPageViewModelFactory(countReserved)).get(VMPageViewModel::class.java)
+        
+        Btn_1.setOnClickListener {
+            viewModel.counter++
+            refreshCounter()
+        }
+        
+        Btn_2.setOnClickListener {
+            viewModel.counter = 0
+            refreshCounter()
+        }
+        
+        refreshCounter()
+    }
+
+    private fun refreshCounter(){
+        infoText.text = viewModel.counter.toString()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sp.edit {
+            putInt("count_reserved",viewModel.counter)
+        }
+    }
+
+}
+```
+&emsp;&emsp;在```onCreate()```方法中，首先获取```SharedPreferences```的实例，然后读取之前保存的计数值，如果没有读到就用0作为默认值。在```ViewModelProvider```的构造方法中传入了一个```VMPageViewModelFactory```参数，将读取到的计数值传给```VMPageViewModelFactory```的构造参数。  
+&emsp;&emsp;在```onPause()```方法中对当前的计数进行保存，这样可以保证不管程序是退出还是进入后台，计数都不会丢失。  
+&emsp;&emsp;  
+如果```sp.edit```出现报错如下图：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/ViewModel_Error.png)  
+&emsp;&emsp;那是因为项目用jvm1.6进行构建，而库用到1.8版本导致不兼容。  
+&emsp;&emsp;解决方法如下：  
+* 修改```app/build.gradle```  
+```gradle
+android {
+    ...
+    compileOptions {
+        sourceCompatibility = 1.8
+        targetCompatibility = 1.8
+    }
+ 
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+```
+* 然后 File -> Settings -> Kotlin Compiler，确保```Target JVM version```这一栏为1.8  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/ViewModel_fix_1.png)  
