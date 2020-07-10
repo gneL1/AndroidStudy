@@ -673,5 +673,71 @@ class MaterialCardViewTest : AppCompatActivity() {
 ***  
 
 ### 2. AppBarLayout
+&emsp;&emsp;在上面的案例中，**Toolbar** 被 **RecyclerView** 挡住了。**Toolbar** 和 **RecyclerView** 都是被放置在 **CoordinatorLayout** 中的，**CoordinatorLayout** 就是一个加强版的 **FrameLayout** ，**FrameLayout** 中的所有控件在不进行明确定位的情况下，默认都会摆放在布局的左上角，从而产生遮挡现象。  
+&emsp;&emsp;**AppBarLayout** 实际上是一个垂直方向的 **LinearLayout**，它在内部做了很多滚动事件的封装，可以解决遮挡问题。  
+&emsp;&emsp;  
+将 **Toolbar** 嵌套到 **AppBarLayout** 中，然后给 **RecyclerView** 指定一个布局。  
+&emsp;&emsp;使用```app:layout_behavior```属性指定一个布局行为。  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MaterialCardViewTest">
 
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.google.android.material.appbar.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/Tb_1"
+                android:background="@color/colorPrimary"
+                android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"/>
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="16dp"
+            android:src="@drawable/ic_done"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</LinearLayout>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/AppBarLayout_1.gif)
+
+**AppBarLayout** 还能实现Material Design效果，在 **Toolbar** 中添加```app:layout_scrollFlags```属性：  
+&emsp;&emsp;```scroll```表示当 **RecyclerView** 向上滚动的时候，**Toolbar** 会跟着一起向上滚动并实现隐藏。  
+&emsp;&emsp;```enterAlways```表示当 **RecyclerView** 向下滚动的时候， **Toolbar** 会跟着一起向下滚动并重新显示。  
+&emsp;&emsp;```snap```表示当 **Toolbar** 还没有完全隐藏或显示的时候，会根据当前滚动的距离，自动选择是隐藏还是显示。  
+```kotlin
+<androidx.appcompat.widget.Toolbar
+          android:id="@+id/Tb_1"
+          android:background="@color/colorPrimary"
+          android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+          app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+          android:layout_width="match_parent"
+          app:layout_scrollFlags="scroll|enterAlways|snap"
+          android:layout_height="?attr/actionBarSize"/>
+```
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Material%20Design/Card/AppBarLayout_2.gif)
 
