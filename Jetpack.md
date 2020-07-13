@@ -176,5 +176,58 @@ android {
 &emsp;&emsp;为什么需要感知 **Activity** 生命周期的情况？  
 &emsp;&emsp;如果某个界面发起一条网络请求，但是当请求得到响应的时候，界面或许已经关闭了，这个时候就不应该继续对响应的结果进行处理，因此需要能够时刻感知 **Activity** 的生命周期，以便在适当的时候进行相应的逻辑控制。  
 &emsp;&emsp;**Lifecycles** 可以让一个类轻松感知到 **Activity** 的生命周期，同时又不需要在 **Activity** 中编写大量的逻辑处理。  
+&emsp;&emsp;  
+* 新建一个```MyObserver```  
+```kotlin
+class MyObserver : LifecycleObserver{
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    fun activityStart(){
+        Log.d("MyObserver:","activityStart")
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
+    fun activityStop(){
+        Log.d("MyObserver:","activityStop")
+    }
+}
+```
+&emsp;&emsp;```LifecycleObserver```是一个空方法接口，在此进行接口实现声明。在方法上使用了```@OnLifecycleEvent```注解，并传入了一种生命周期事件。  
+&emsp;&emsp;生命周期有7种，```ON_CREATE```、```ON_START```、```ON_RESUME```、```ON_PAUSE```、```ON_STOP```、```ON_DESTROY```分别匹配 **Activity** 中对应的生命周期，还有一种```ON_ANY```类型表示匹配 **Activity** 的任何生命周期。上面的```activityStart()```和```activityStop```分别在 **Activity** 的```onStart()```和```onStop()```触发的时候执行。    
+
+* 修改```LifecyclesTest```  
+```kotlin
+class LifecyclesTest : AppCompatActivity() {
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_lifecycles_test)
+        lifecycle.addObserver(MyObserver())
+    }
+
+}
+```
+
+&emsp;&emsp;调用```LifecycleOwner```的```getLifecycle()```方法，得到一个```Lifecycle```对象，然后调用它的```addObserver()```方法来观察```LifecycleOwner```的生命周期，再把```MyObserver```的实例传进去。  
+```kotlin
+ifecycleOwner.lifecycle.addObserver(MyObserver()) 
+```
+&emsp;&emsp;由于 **Activity** 是继承自 **AppCompatActivity** ，或者 **Fragment** 是继承自 **androidx.fragment.app.Fragment** ，他们本身就是一个```LifecycleOwner```的实例，所以可以直接调用```getLifecycle()```。  
+&emsp;&emsp;  
+打开页面然后退出：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Lifecycles.PNG)
+
+&emsp;&emsp;想主动获取当前的生命周期状态的话，可以在```MyObserver```的构造函数中将```Lifecycle```对象传进来，通过```lifecycle.currentState```来主动获取当前的生命周期状态。  
+```kotlin
+class MyObserver(val lifecycle:Lifecycle) : LifecycleObserver{
+    ......
+}
+```
+
+&emsp;&emsp;```Lifecycle```返回的生命周期状态有5种类型：```INITIALZED```、```DESTROYED```、```CREATED```、```STARTED```、```RESUMED```，与 **Activity** 的生命周期回调所对应的关系如下图。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Lifecycles_2.PNG)
+
+***
+
+## 三、LiveData
 
 
