@@ -229,7 +229,7 @@ class MyObserver(val lifecycle:Lifecycle) : LifecycleObserver{
 ***
 
 ## 三、LiveData
-&emsp;&emsp; **LiveData** 是一种响应式编程组件。它可以包含任何类型的数据，并在数据发生变化的时候通知给观察者，** LiveData** 适合与 **ViewModel** 结合在一起使用。  
+&emsp;&emsp; **LiveData** 是一种响应式编程组件。它可以包含任何类型的数据，并在数据发生变化的时候通知给观察者，**LiveData** 适合与 **ViewModel** 结合在一起使用。  
 
 ### 1. 基本用法
 &emsp;&emsp;上面的计数器功能在单线程模式下确实可以正常工作。但如果 **ViewModel** 的内部开启了线程去执行一些耗时操作，那么在点击按钮后就立即去获取最新的数据，得到的还会是之前的数据。  
@@ -356,5 +356,83 @@ protected void setValue(T value) {
     dispatchingValue(null);
 }
 ```
+
+***
+
+### 2. map和switchMap
+**```map()```**  
+&emsp;&emsp;将实际包含数据的```LiveData```和仅用于观察的```LiveData```进行转换。  
+&emsp;&emsp;比如有一个```User```类，```User```中包含用户的姓名和年龄：  
+```kotlin
+data class User(val firstName : String, val lastName : String, var age : Int)
+```
+&emsp;&emsp;在```ViewModel```中。  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+
+    private val userLiveData = MutableLiveData<User>()
+
+    val userName : LiveData<String> = Transformations.map(userLiveData){
+        user -> "${user.firstName} ${user.lastName}"
+    }
+    ......
+}    
+```
+&emsp;&emsp;调用了```Transformations```的```map()```方法来对```LiveData```的数据类型进行转换。```map()```方法接收两个参数，第一个参数是原始的```LiveData```对象。第二个参数是一个转换函数，在转换函数中编写具体的逻辑，这里将```User```对象转换成一个只包含用户姓名的字符串。  
+&emsp;&emsp;将```userLiveData```声明称```private```，来保证数据的封装性。外部使用的时候只要观察```userName```这个```LiveData```。当```userLiveData```的数据发生变化时，```map()```方法会监听到变化并执行转换函数中的逻辑，然后将转换之后的数据通知给```userName```的观察者。  
+&emsp;&emsp;  
+**```switchMap()```**  
+&emsp;&emsp;如果```ViewModel```中的某个```LiveData```对象时调用另外的方法获取的，那么就可以借助```switchMap()```方法，将这个```LiveData```对象转换成另外一个可观察的```LiveData```对象。  
+
+* 新建一个```Repository```单例类  
+```kotlin
+object Repository {
+    fun getUser(userId : String) : LiveData<User>{
+        val liveData = MutableLiveData<User>()
+        liveData.value = User(userId,userId,0)
+        return liveData
+    }
+}
+```
+&emsp;&emsp;```getUser()```方法返回的是一个包含```User```数据的```LiveData```对象，每次调用```getUser()```方法都会返回一个新的```LiveData```实例。  
+
+* 修改```ViewModel```  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+
+    private val userIdLiveData = MutableLiveData<String>()
+
+    val user : LiveData<User> = Transformations.switchMap(userIdLiveData){
+        userId -> Repository.getUser(userId)
+    }
+
+    fun getUser(userId:String){
+        userIdLiveData.value = userId
+    }
+    ......
+
+}
+```
+&emsp;&emsp;定义了一个新的```userIdLiveData```对象，用来观察```userId```的数据变化，然后调用```Transformations```的```switchMap()```方法，用来对另一个可观察的```LiveData```对象进行转换。  
+&emsp;&emsp;```switchMap()```接收两个参数，第一个参数传入新增的```userIdLiveData```，```switchMap()```方法会对它进行观察。第二个参数是一个转换函数，必须在这个转换函数中返回一个```LiveData```对象，```switchMap()```的工作原理就是将转换函数中返回的```LiveData```对象转换成另一个可观察的```LiveData```对象。在转换函数中调用```Repository```的```getUser()```方法来得到```LiveData```对象，并将它返回。  
+&emsp;&emsp;```switchMap()```的整个工作流程是当外部调用```ViewModel```中的```getUser()```方法来获取用户数据时，并不会发起任何请求或者函数调用，只会将传入的```userId```值设置到```userIdLiveData```中。一旦```userIdLiveData```的数据发生变化，那么观察```userIdLiveData```的```switchMap()```方法就会执行，并且调用编写的转换函数。然后在转换函数中调用```Repository.getUser()```方法获取真正的用户数据。```switchMap()```方法会将```Repository.getUser()```返回的```LiveData```对象转换成一个可观察的```LiveData```对象，对于 **Activity** 而言，只需要去观察这个```LiveData```。  
+
+* 修改```Activity```  
+```kotlin
+class VMPage : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        ......
+        Btn_3.setOnClickListener {
+            val userId = (0..10000).random().toString()
+            viewModel.getUser(userId)
+        }
+        viewModel.user.observe(this, Observer {
+            user -> infoText.text = user.firstName
+        })
+    }    
+}
+```
+&emsp;&emsp;在按钮中使用随机函数生成了一个```userId```，然后调用```ViewModel```的```getUser()```方法来获取用户数据。当数据获取完成后，可观察```LiveData```对象的```observe()```方法就会得到通知，在此处将获取的用户名显示到界面上。
 
 
