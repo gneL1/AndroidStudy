@@ -229,5 +229,132 @@ class MyObserver(val lifecycle:Lifecycle) : LifecycleObserver{
 ***
 
 ## 三、LiveData
+&emsp;&emsp; **LiveData** 是一种响应式编程组件。它可以包含任何类型的数据，并在数据发生变化的时候通知给观察者，** LiveData** 适合与 **ViewModel** 结合在一起使用。  
+
+### 1. 基本用法
+&emsp;&emsp;上面的计数器功能在单线程模式下确实可以正常工作。但如果 **ViewModel** 的内部开启了线程去执行一些耗时操作，那么在点击按钮后就立即去获取最新的数据，得到的还会是之前的数据。  
+&emsp;&emsp;把 **Activity** 的实例传给 **ViewModel** ，这样 **ViewModel** 能主动对 **Activity** 进行通知，但是 **ViewModel** 的生命周期长于 **Activity** ，这样会因为 **Activity** 无法释放而造成内存泄漏。这时候就用到 **LiveData**。  
+
+* 修改```ViewModel```  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+
+    val counter = MutableLiveData<Int>()
+
+    init {
+        counter.value = countReserved
+    }
+
+    fun plusOne(){
+        val count = counter.value ?: 0
+        counter.value = count + 1
+    }
+
+    fun clear(){
+        counter.value = 0
+    }
+
+}
+```
+&emsp;&emsp;将```counter```变量修改成一个```MutableLiveData```对象，并指定它的泛型为Int，表示它包含的是整型数据。  
+&emsp;&emsp;```MutableLiveData```是一种可变的```LiveData```，有三种读写数据的方法：  
+&emsp;&emsp;```getValue()```获取```LiveData```中包含的数据。  
+&emsp;&emsp;```setValue()```用于给```LiveData```设置数据，但是只能在主线程中调用。  
+&emsp;&emsp;```postValue()```用于在非主线程中给```LiveData```设置数据。  
+&emsp;&emsp;在```init```结构体中给```counter```设置数据，这样之前保存的计数值就可以在初始化的时候得到恢复。新增```plusOne()```和```clear()```方法，分别用于给技术加以及将计数清零。```plusOne()```先获取```counter```中包含的数据，然后给它加1，再重新设置到```counter```中。调用```LiveData```的```getValue()```方法所获取的数据是可能为空的，因此使用了```?:```操作符，当获取到的数据为空时，用0来作为默认计数。  
+&emsp;&emsp;  
+* 修改```Activity```  
+```kotlin
+class VMPage : AppCompatActivity() {
+
+    lateinit var viewModel: VMPageViewModel
+
+    lateinit var sp : SharedPreferences
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_v_m_page)
+
+        sp = getPreferences(Context.MODE_PRIVATE)
+        val countReserved = sp.getInt("count_reserved",0)
+        viewModel = ViewModelProvider(this,VMPageViewModelFactory(countReserved)).get(VMPageViewModel::class.java)
+
+        Btn_1.setOnClickListener {
+            viewModel.plusOne()
+        }
+
+        Btn_2.setOnClickListener {
+            viewModel.clear()
+        }
+
+        viewModel.counter.observe(this, Observer {
+            count -> infoText.text = count.toString()
+        })
+
+    }
+
+    override fun onPause() {
+        super.onPause()
+        sp.edit {
+            putInt("count_reserved",viewModel.counter.value ?: 0)
+        }
+    }
+
+}
+```
+&emsp;&emsp;调用```viewModel.counter```的```observe()```方法来观察数据的变化。```counter```变量是一个```LiveData```对象，任何```LiveData```对象都可以调用它的```observe()```方法来观察数据的变化。  
+&emsp;&emsp;```observe()```方法接收两个参数，第一个参数是一个```LifecycleOwner```对象，**Activity** 本身就是一个```LifecycleOwner```对象，因此直接传入```this```。第二个参数是一个```Observer```接口，当```counter```中包含的数据发生变化时，就会回调到这里，在此处将最新的计数更新到界面上。  
+&emsp;&emsp;  
+&emsp;&emsp;```LiveData```的```observe()```方法是一个 **Java** 方法，```observe()```的其中一个参数是```Observer```接口，这是一个单抽象方法接口，只有一个待实现的```onChanged()```方法。```observe()```的另一个参数```LifecycleOwner```也是一个单抽象方法接口。当一个 **Java** 方法同时接收两个单抽象方法接口参数时，要么同时使用函数式API的写法，要么都不使用函数式API的写法。  
+&emsp;&emsp;```lifecycle-livedata-ktx```是一个专门为 **Kotlin** 语言设计的库，在2.2.0版本中加入了对```observe()```方法的语法扩展。  
+&emsp;&emsp;  
+添加依赖：  
+```gradle
+implementation  'androidx.lifecycle:lifecycle-livedata-ktx:2.2.0'
+```
+使用如下语法结构的```observe()```方法：  
+```kotlin
+viewModel.counter.observe(this){
+        count -> infoText.text = count.toString()
+}
+```
+
+* 优化```ViewModel```  
+&emsp;&emsp;上面的写法还是有问题，在于将```counter```这个可变的```LiveData```暴露给了外部，这样即使是在```ViewModel```的外面也可以给```counter```设置数据，从而破坏了```ViewModel```数据的封装性。  
+&emsp;&emsp;正确的做法是永远只暴露不可变的```LiveData```给外部，这样在非```ViewModel```中就只能观察```LiveData```的数据变化，而不能给```LiveData```设置数据。  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+
+    val counter:LiveData<Int> get() = _counter
+
+    private val _counter = MutableLiveData<Int>()
+
+    init {
+        _counter.value = countReserved
+    }
+
+    fun plusOne(){
+        val count = _counter.value ?: 0
+        _counter.value = count + 1
+    }
+
+    fun clear(){
+        _counter.value = 0
+    }
+
+}
+```
+&emsp;&emsp;将原来的```counter```变量改为```_counter```变量，并给它加上```private```修饰符，这样```_counter```变量对于外部就是不可见的了。然后又新定义了一个```counter```变量，将它的类型声明为不可变的```LiveData```，并在它的```get()```属性方法中返回```_counter```变量。  
+&emsp;&emsp;当外部调用```counter```变量时，实际上获得的就是```_counter```的实例，但是无法给```counter```设置数据，从而保证了```ViewModel```的数据封装性。  
+&emsp;&emsp;```LiveData```里的```setValue```：  
+```kotlin
+@MainThread
+protected void setValue(T value) {
+    assertMainThread("setValue");
+    mVersion++;
+    mData = value;
+    dispatchingValue(null);
+}
+```
 
 
