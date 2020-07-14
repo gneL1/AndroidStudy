@@ -647,4 +647,112 @@ class RoomTest : AppCompatActivity() {
 删除后查询：  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Room_delete.PNG)
 
+***
 
+### 2. Room的数据库升级
+如果打算在数据库中添加一张表：  
+1. 创建一个```Book```实体类  
+```kotlin
+@Entity
+data  class Book(var name:String,var pages:Int) {
+    @PrimaryKey(autoGenerate = true)
+    var id:Long = 0
+}
+```
+&emsp;&emsp;```Book```类包含主键```id```、书名、页数这几个字段。  
+
+
+2.创建```BookDao```接口  
+```kotlin
+@Dao
+interface BookDao {
+
+    @Insert
+    fun insertBook(book:Book):Long
+
+    @Query("select * from Book")
+    fun loadAllBooks():List<Book>
+}
+```
+
+3. 修改```AppDatabase```  
+```kotlin
+@Database(version = 2,entities = [User::class,Book::class])
+abstract class AppDatabase : RoomDatabase(){
+
+    abstract fun userDao():UserDao
+
+    abstract fun bookDao():BookDao
+
+    companion object{
+
+        val MIGRATION_1_2 = object : Migration(1,2){
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "create table Book (id integer primary key autoincrement not null,name text not null,pages integer not null)"
+                )
+            }
+        }
+
+        private var instance:AppDatabase? = null
+
+        @Synchronized
+        fun getDatabase(context: Context):AppDatabase{
+            instance?.let {
+                return it
+            }
+            return Room.databaseBuilder(
+                context.applicationContext,AppDatabase::class.java,"app_database"
+            ).addMigrations(MIGRATION_1_2).build().apply {
+                instance = this
+            }
+        }
+    }
+}
+```
+&emsp;&emsp;在```@Database```注解中，将版本号升级成了2，并将```Book```类添加到了实体类声明中，然后提供了一个```bookDao()```方法用于获取```BookDao```实例。  
+&emsp;&emsp;在```companion object```结构体中，实现了一个```Migration```的匿名类，并传入了1和2这两个参数，表示当数据库版本从1升级到2的时候就执行这个匿名类中的升级逻辑。由于要新增一张```Book```表，所以需要在```migrate()```方法中编写相应的建表语句。```Book```表的建表语句必须和```Book```实体类中声明的结构完全一致，否则 **Room** 就会抛出异常。  
+&emsp;&emsp;在构建```AppDatabase```实例的时候，加入一个```addMigrations()```方法，并把```MIGRATION_1_2```传入。当进行任何数据库操作时，**Room** 就会自动根据当前数据库的版本号执行这些升级逻辑，从而让数据库始终保证是最新版本。  
+&emsp;&emsp;  
+&emsp;&emsp;  
+&emsp;&emsp;如果是向现有表中添加新的列，只需要使用```alter```语句修改表结构就可以了。  
+1. 修改```Book```实体类，添加一个作者字段  
+```kotlin
+@Entity
+data  class Book(var name:String,var pages:Int,var author:String) {
+    @PrimaryKey(autoGenerate = true)
+    var id:Long = 0
+}
+```
+
+2. 修改```AppDatabase```  
+```kotlin
+@Database(version = 3,entities = [User::class,Book::class])
+abstract class AppDatabase : RoomDatabase(){
+    ......
+    companion object{
+        ......
+        val MIGRATION_2_3 = object : Migration(2,3){
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("alter table Book add column author text not null default 'unknown'")
+            }
+
+        }
+
+        private var instance:AppDatabase? = null
+
+        @Synchronized
+        fun getDatabase(context: Context):AppDatabase{
+            instance?.let {
+                return it
+            }
+            return Room.databaseBuilder(
+                context.applicationContext,AppDatabase::class.java,"app_database"
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().apply {
+                instance = this
+            }
+        }
+    }
+}
+```
+&emsp;&emsp;先将版本号升级成3，然后编写一个```MIGRATION_2_3```的升级逻辑并添加到```addMigrations()```方法中。如果```SQL```语句写错了，程序运行之后在首次操作数据库的时候就会直接触发崩溃，并给出具体错误原因。  
