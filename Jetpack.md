@@ -433,6 +433,29 @@ class VMPage : AppCompatActivity() {
     }    
 }
 ```
-&emsp;&emsp;在按钮中使用随机函数生成了一个```userId```，然后调用```ViewModel```的```getUser()```方法来获取用户数据。当数据获取完成后，可观察```LiveData```对象的```observe()```方法就会得到通知，在此处将获取的用户名显示到界面上。
+&emsp;&emsp;在按钮中使用随机函数生成了一个```userId```，然后调用```ViewModel```的```getUser()```方法来获取用户数据。当数据获取完成后，可观察```LiveData```对象的```observe()```方法就会得到通知，在此处将获取的用户名显示到界面上。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/switchMap.gif)  
 
+* 当```ViewModel```中某个获取数据的方法没有参数  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+    
+    private val refreshLiveData = MutableLiveData<Any?>()
+    
+    val refreshResult = Transformations.switchMap(refreshLiveData){
+        Repository.refresh()
+    }
+    
+    fun refresh(){
+        refreshLiveData.value = refreshLiveData.value
+    }
+    ......
+}    
+```
+&emsp;&emsp;定义了一个不带参数的```refresh()```方法，对应地定义了一个```refreshLiveData```，不需要指定具体包含的数据类型，将```LiveData```的泛型指定成```Any?```。  
+&emsp;&emsp;在```refresh()```方法中，将```refreshLiveData```原有的数据取出来(默认为空)，再重新设置到```refreshLiveData```当中，这样就能触发一次数据变化。```LiveData```内部不会判断即将设置的数据和原有数据是否相同，只要调用了```setValue()```或```postValue()```方法，就一定会触发数据变化事件。  
+&emsp;&emsp;在 **Activity** 中观察```refreshResult```这个```LiveData```对象。只要调用了```refresh()```方法，观察者的回调函数就能够得到最新的数据。  
+&emsp;&emsp;```LiveData```在内部使用了```Lifecycles```组件来自我感知生命周期的变化，从而可以在 **Activity** 销毁的时候及时释放引用，避免产生内存泄漏的问题。  
+&emsp;&emsp;由于要减少性能消耗，当 **Activity** 处于不可见状态时(手机息屏、被其他 **Activity** 遮挡)，如果```LiveData```中的数据发生了变化，是不会通知给观察者的。只有当 **Activity** 重新恢复可见状态时，才会将数据通知给观察者。  
+&emsp;&emsp;如果在 **Activity** 处于不可见状态时，```LiveData```发生了多次数据变化，当 **Activity** 恢复可见状态时，只有最新的那份数据才会通知给观察者，前面的数据在这种情况下相当于过期了。会被直接丢弃。  
 
