@@ -459,3 +459,192 @@ class VMPageViewModel(countReserved : Int) : ViewModel() {
 &emsp;&emsp;由于要减少性能消耗，当 **Activity** 处于不可见状态时(手机息屏、被其他 **Activity** 遮挡)，如果```LiveData```中的数据发生了变化，是不会通知给观察者的。只有当 **Activity** 重新恢复可见状态时，才会将数据通知给观察者。  
 &emsp;&emsp;如果在 **Activity** 处于不可见状态时，```LiveData```发生了多次数据变化，当 **Activity** 恢复可见状态时，只有最新的那份数据才会通知给观察者，前面的数据在这种情况下相当于过期了。会被直接丢弃。  
 
+***
+
+## 四、Room
+&emsp;&emsp;**ORM**(Object Relational Mapping)，对象关系映射。使用的编程语言时面向对象语言，使用的数据库时关系型数据库，将面向对象语言和面向关系的数据库之间建立一种映射关系，就是 **ORM** 。  
+### 1. 使用Room进行增删改查
+&emsp;&emsp;**Room** 主要有 **Entity**、**Dao**、**Database** 3部分组成。  
+&emsp;&emsp;**Entity** ：用于定义封装实际数据的实体类，每个实体类都会在数据库中有一张对应的表，并且表中的列是根据实体类中的字段自动生成的。  
+&emsp;&emsp;**Dao** ：**Dao** 是数据访问对象的意思，通常会在这里对数据库的各项操作进行封装，在实际编程时，逻辑层就不需要和底层数据库打交道了，直接和 **Dao** 层进行交互即可。  
+&emsp;&emsp;**Database** ：用于定义数据库中的关键信息，包括数据库的版本号、包含哪些实体类以及提供 **Dao** 层的访问实例。  
+
+* 添加依赖  
+在```app/build.gradle```文件中  
+```gradle
+apply plugin: 'kotlin-kapt'
+
+......
+
+implementation  'androidx.room:room-runtime:2.2.5'
+kapt  "androidx.room:room-compiler:2.2.5"
+```
+&emsp;&emsp;新增一个```kotlin-kapt```插件，同时在dependencies闭包中添加了两个 **Room** 的依赖库。**Room** 会根据项目中生成的注解来动态生成代码，因此这里一定要使用```kapt```引入 **Room**的编译时注解库，而启用编译时注解功能一定要先添加```kotlin-kapt```插件。```kapt```只能在 **Kotlin** 项目中使用，如果是 **Java** 项目的话，使用```annotationProcessor```。  
+
+* **Entity**  
+给每个实体类都添加一个```id```字段，并将这个字段设为主键  
+```kotlin
+@Entity
+data class User(var firstName:String,var lastName:String,var age:Int) {
+    @PrimaryKey(autoGenerate = true)
+    var id:Long = 0
+}
+```
+&emsp;&emsp;在```User```类名上使用了```@Entity```注解，将它声明成了一个实体类。在```User```类中添加了一个```id```字段，并使用```@PrimaryKey```注解将它设为了主键，再把```autoGenerate```参数指定为```true```，使得主键的值是自动生成的。  
+
+* **Dao**  
+新建一个```UserDao```接口，必须使用接口  
+```kotlin
+@Dao
+interface UserDao {
+
+    @Insert
+    fun insertUser(user: User):Long
+
+    @Update
+    fun updateUser(newUser: User)
+
+    @Query("select * from User")
+    fun loadAllUsers() : List<User>
+
+    @Query("select * from User where age > :age")
+    fun loadUserOlderThan(age:Int):List<User>
+
+    @Delete
+    fun deleteUser(user: User)
+
+    @Query("delete from User where lastName = :lastName")
+    fun deleteUserByLastName(lastName:String):Int
+}
+```
+&emsp;&emsp;```UserDao```接口的上面使用了一个```@Dao```注解，这样 **Room** 才能将它识别成 **Dao**。  
+&emsp;&emsp;```insertUser()```方法上面使用了```@Insert```注解，表示会将参数传入的```User```对象插入到数据库中，插入完成后还会将自动生成的主键```id```值返回。  
+&emsp;&emsp;```@Update```注解会将参数传入的```User```对象更新到数据库中。  
+&emsp;&emsp;```@Delete```注解会将参数传入的```User```对象从数据库中删除。  
+&emsp;&emsp;如果想要从数据库中查询数据，或者使用非实体类参数来增删数据，那么就必须编写```SQL```语句，因为如果只使用```@Query```注解，**Room** 无法知道用户想要查询哪些数据。通过```:```符号还可以将方法中传入的参数指定到```SQL```语句中。使用非实体类参数来增删改数据，此时不能使用```@Insert```、```@Delete```、```@Update```注解，而是都要使用```@Query```注解，参考```deleteUserByLastName()```方法。  
+
+* **Database**  
+&emsp;&emsp;新建一个```AppDatabase.kt```文件，定义3个部分：数据库的版本号、包含哪些实体、提供 **Dao** 层的访问实例。  
+```kotlin
+@Database(version = 1,entities = [User::class])
+abstract class AppDatabase : RoomDatabase(){
+
+    abstract fun userDao():UserDao
+
+    companion object{
+        private var instance:AppDatabase? = null
+
+        @Synchronized
+        fun getDatabase(context: Context):AppDatabase{
+            instance?.let {
+                return it
+            }
+            return Room.databaseBuilder(
+                context.applicationContext,AppDatabase::class.java,"app_database"
+            ).build().apply {
+                instance = this
+            }
+        }
+    }
+}
+```
+&emsp;&emsp;```@Database```注解中声明了数据库的版本号以及包含哪些实体类，多个实体类之间用逗号隔开。  
+&emsp;&emsp;```AppDatabase```类必须继承自```RoomDatabase```类，并且一定要使用```abstract```关键字将它声明成抽象类，然后提供相应的抽象方法，用于获取 **Dao** 的实例，只进行方法声明，具体的实现由 **Room** 在底层自动完成。  
+&emsp;&emsp;在```companion object```结构体中编写一个单例模式，全局只存在一份```AppDatabase```实例。定义```instance```变量来缓存```AppDatabase```的实例，然后在```getDatabase()```方法中判断，如果```instance```变量不为空就直接返回，否则就调用```Room.databaseBuilder()```方法来构建一个```Appdatabase```的实例。  
+&emsp;&emsp;```databaseBuilder()```方法接收3个参数，第一个参数一定要使用```applicationContext```，而不能使用普通的```context```，否则容易出现内存泄露的问题。第二个参数是```AppDatabase```的 **Class** 类型，第三个参数是数据库名。最后调用```build()```方法完成构建，并将创建出来的实例赋值给```instance```变量，然后返回当前实例。  
+
+* 修改布局文件和 **Activity**  
+&emsp;&emsp;由于数据库操作属于耗时操作， **Room** 默认是不允许在主线程中进行数据库操作的，将增删改查的功能都放到子线程中。  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".RoomTest">
+
+    <Button
+        android:id="@+id/Btn_add"
+        android:textAllCaps="false"
+        android:text="添加"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_update"
+        android:textAllCaps="false"
+        android:text="修改"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_delete"
+        android:textAllCaps="false"
+        android:text="删除"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+    <Button
+        android:id="@+id/Btn_query"
+        android:textAllCaps="false"
+        android:text="查询"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+
+```kotlin
+class RoomTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_room_test)
+
+        //获取UserDao的实例，创建两个User对象
+        val userDao = AppDatabase.getDatabase(this).userDao()
+        val user1 = User("Tom","Brady",40)
+        val user2 = User("Tom","Hanks",63)
+
+        //将insertUser()方法返回的主键id赋值给原来的User对象
+        //这么做是因为使用@Update和@Delete注解去更新和删除数据时都是基于id来操作的
+        Btn_add.setOnClickListener {
+            thread {
+                user1.id = userDao.insertUser(user1)
+                user2.id = userDao.insertUser(user2)
+            }
+        }
+
+        Btn_update.setOnClickListener {
+            thread {
+                user1.age = 42
+                userDao.updateUser(user1)
+            }
+        }
+
+        Btn_delete.setOnClickListener {
+            thread {
+                userDao.deleteUserByLastName("Hanks")
+            }
+        }
+
+        Btn_query.setOnClickListener {
+            thread {
+                for (user in userDao.loadAllUsers()){
+                    Log.d("RoomTest",user.toString())
+                }
+            }
+        }
+    }
+}
+```
+增加后查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Room_add.PNG)
+
+修改后查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Room_update.PNG)
+
+删除后查询：  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/Room_delete.PNG)
+
+
