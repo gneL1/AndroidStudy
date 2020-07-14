@@ -756,3 +756,156 @@ abstract class AppDatabase : RoomDatabase(){
 }
 ```
 &emsp;&emsp;先将版本号升级成3，然后编写一个```MIGRATION_2_3```的升级逻辑并添加到```addMigrations()```方法中。如果```SQL```语句写错了，程序运行之后在首次操作数据库的时候就会直接触发崩溃，并给出具体错误原因。  
+
+***
+
+## 五、WorkManager
+&emsp;&emsp;**WorkManager** 是一个处理定时任务的工具，可以保证即使在应用退出甚至手机重启的情况下，之前注册的任务仍然将会得到执行。**WorkManager** 适合用于执行一些定期和服务器进行交互的任务，比如周期性地同步数据等待。  
+&emsp;&emsp;使用 **WorkManager** 注册的周期性任务不能保证一定会准时执行，可能会将触发事件临近的几个任务放在一起执行，能减少CPU被唤醒的次数，节约电池。  
+
+### 1. 基本用法
+在```app/build.gradle```文件中添加依赖  
+```gradle
+implementation  'androidx.work:work-runtime:2.3.4'
+```
+
+**WorkManager```的基本用法分为3步：  
+* (1) 定义一个后台任务，并实现具体的任务逻辑；  
+* (2) 配置该后台任务的运行条件和约束信息，并构建后台任务请求；  
+* (3) 将该后台任务请求传入 **WorkManager** 的```enqueue()```方法中，系统会在合适的时间运行。  
+
+**1. 定义一个后台任务，创建一个```SimpleWorker```类**  
+```kotlin
+class SimpleWorker(context:Context,params:WorkerParameters) : Worker(context,params){
+    override fun doWork(): Result {
+        Log.d("SimpleWorker","do work in SimpleWorker")
+        return Result.success()
+    }
+}
+```
+&emsp;&emsp;每一个后台任务都必须继承自```Worker```类，并调用它唯一的构造函数，然后重写父类中的```doWork()```方法，在这个方法中编写具体的后台任务。  
+&emsp;&emsp;```doWork()```方法不会运行在主线程当中，在此可执行耗时逻辑。```doWork()```方法要求返回一个```Result```对象，用于表示人物的运行结果。成功返回```Result.success()```，失败返回```Result.failure()```。还有一个```Result.retry()```方法，也代表失败，但是可以结合```WorkRequest.Build```的```setBackoffCriteria()```方法来重新执行任务。  
+
+**2. 配置后台任务的运行条件和约束信息**  
+```kotlin
+val request = OneTimeWorkRequest.Builder(SimpleWorker::class.java).build()
+```
+&emsp;&emsp;把之前创建的后台任务所对应的 **Class** 对象传入```OneTimeWorkRequest.Builder```的构造函数中，调用```build()```方法完成构建。  
+&emsp;&emsp;```OneTimeWorkRequest.Builder```是```WorkRequest.Builder```的子类，用于构建单次运行的后台任务请求。```WorkRequest.Builder```还有另一个子类```PeriodicWorkRequest.Builder```，可用于构建周期性运行的后台任务请求。但是为了降低设备性能消耗，```PeriodicWorkRequest.Builder```构造函数中传入的运行周期间隔不能短于15分钟。  
+```kotlin
+val request1 = PeriodicWorkRequest.
+    Builder(SimpleWorker::class.java,15,TimeUnit.MINUTES).build()
+```
+
+**3. 将构建出的后台任务请求传入```WorkManager```的```enqueue()```方法中**  
+```kotlin
+WorkManager.getInstance(this).enqueue(request)
+```
+
+使用：  
+* 修改布局页面  
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".WorkManagerTest">
+
+    <Button
+        android:id="@+id/Btn_doWork"
+        android:textAllCaps="false"
+        android:text="Do Work"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+```
+
+* 修改```Activity```  
+```kotlin
+class WorkManagerTest : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_work_manager_test)
+
+        Btn_doWork.setOnClickListener {
+            val request = OneTimeWorkRequest.Builder(SimpleWorker::class.java).build()
+            WorkManager.getInstance(this).enqueue(request)
+        }
+    }
+}
+```
+&emsp;&emsp;后台任务的具体运行时间是由我们所指定的约束以及系统自身的一些优化所决定的，这里没有指定任何约束，因此后台任务基本会在点击按钮之后立刻运行。  
+
+***
+
+### 2. 处理复杂的任务
+* 让后台任务在指定的延迟时间后运行，使用```setInitialDelay()```方法：    
+```kotlin
+val request = OneTimeWorkRequest.Builder(SimpleWorker::class.java)
+                .setInitialDelay(5,TimeUnit.SECONDS)
+                .build()
+```
+
+* 给后台任务请求添加标签：  
+```kotlin
+val request = OneTimeWorkRequest.Builder(SimpleWorker::class.java)
+                .addTag("simple")
+                .build()
+```
+
+添加了标签后，可以通过标签来取消后台任务请求  
+```kotlin
+WorkManager.getInstance(this).cancelAllWorkByTag("simple")
+```
+
+即使没有标签，也可以通过```id```来取消后台任务请求  
+```kotlin
+WorkManager.getInstance(this).cancelWorkById(request.id)
+```
+
+使用```id```只能取消单个后台任务请求，使用标签可以将同一标签下的所有后台任务请求全部取消。  
+
+* 一次性取消所有后台任务请求：  
+```kotlin
+WorkManager.getInstance(this).cancelAllWork()
+```
+
+* 如果后台任务的```doWork()```方法中返回了```Result.retry()```，可以结合```setBackoffCriteria()```方法来重新执行任务：  
+```kotlin
+val requestRetry = OneTimeWorkRequest.Builder(SimpleWorker::class.java)
+                .setBackoffCriteria(BackoffPolicy.LINEAR,10,TimeUnit.SECONDS)
+                .build()
+```
+&emsp;&emsp;```setBackoffCriteria()```方法接收3个参数，第二个和第三个参数用于指定在多久之后重新执行任务，时间最短不能少于10秒钟。第一个参数则用于指定如果任务再次执行失败，下次重试的时间应该以什么样的形式延迟。随着失败次数的增多，下次重试的时间也进行适当的延迟，可选值```Linear```代表下次重试的时间以线性方式延迟，```EXPONENTIAL```代表下次重拾事件以指数的方式延迟。  
+
+* 对后台的运行结果进行监听：  
+```kotlin
+WorkManager.getInstance(this).getWorkInfoByIdLiveData(request.id)
+            .observe(this){
+                workInfo ->
+                if(workInfo.state == WorkInfo.State.SUCCEEDED) {
+                    Log.d("WorkManagerTest","do work success")
+                }else if(workInfo.state == WorkInfo.State.FAILED){
+                    Log.d("WorkManagerTest","do work failed")
+                }
+            }
+```
+&emsp;&emsp;调用了```getWorkInfoByIdLiveData()```方法，传入后台任务请求的```id```，会返回一个```LiveData```对象。然后调用```LiveData```对象的```observe()```方法来观察数据变化，以此监听后台任务的运行结果。  
+&emsp;&emsp;也可以调用```getWorkInfoByTagLiveData()```方法，监听同一标签下所有后台任务请求的运行结果。  
+
+* 链式任务：  
+&emsp;&emsp;假设定义3个独立的后台任务：同步数据、压缩数据、上传数据。想要实现先同步、再压缩、最后上传的功能，就可以借助链式任务来实现。  
+```kotlin
+val sync = ...
+val compress = ...
+val upload = ...
+WorkManager.getInstance(this)
+            .beginWith(sync)
+            .then(compress)
+            .then(upload)         
+            .enqueue()
+```
+&emsp;&emsp;```beginWith()```方法用于开启一个链式任务，用```then()```方法来连接。```WorkManager```要求必须在前一个后台任务运行成功之后，下一个后台任务才会运行。如果某个后台任务运行失败，或者被取消了，那么接下来的后台任务都得不到运行。  
