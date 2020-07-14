@@ -838,6 +838,7 @@ class WorkManagerTest : AppCompatActivity() {
 }
 ```
 &emsp;&emsp;后台任务的具体运行时间是由我们所指定的约束以及系统自身的一些优化所决定的，这里没有指定任何约束，因此后台任务基本会在点击按钮之后立刻运行。  
+![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/WorkManager_1.PNG)
 
 ***
 
