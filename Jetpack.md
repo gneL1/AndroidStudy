@@ -435,6 +435,24 @@ class VMPage : AppCompatActivity() {
 ```
 &emsp;&emsp;在按钮中使用随机函数生成了一个```userId```，然后调用```ViewModel```的```getUser()```方法来获取用户数据。当数据获取完成后，可观察```LiveData```对象的```observe()```方法就会得到通知，在此处将获取的用户名显示到界面上。  
 ![图片示例](https://github.com/gneL1/AndroidStudy/blob/master/photos/Jetpack/switchMap.gif)  
+&emsp;&emsp;  
+&emsp;&emsp;另外注意，以下写法是行不通的：  
+```kotlin
+class VMPageViewModel(countReserved : Int) : ViewModel() {
+    ...
+    fun getUser(userId:String) : LiveData<User>{
+        return Repository.getUser(userId)
+    }
+
+}
+
+viewModel.getUser(userId).observe(this){
+    user ->
+    ...
+}
+```
+&emsp;&emsp;这里每次调用```getUser()```方法返回的都是一个新的```LiveData```实例，而```ViewModel```会一直观察老的```LiveData```实例，从而无法观察到数据的变化。  
+&emsp;&emsp;  
 
 * 当```ViewModel```中某个获取数据的方法没有参数  
 ```kotlin
